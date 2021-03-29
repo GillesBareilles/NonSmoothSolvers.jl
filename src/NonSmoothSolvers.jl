@@ -1,40 +1,20 @@
 module NonSmoothSolvers
 
-using LinearAlgebra
-using JuMP
-using Printf
 using NonSmoothProblems
+using LinearAlgebra
+using Printf
 using Random
 using Distributions
+using TimerOutputs
 
+using JuMP
 using OSQP
 using Mosek, MosekTools
 using Ipopt
 
 import JuMP.optimize!
 
-# #
-# ### NonSmooth Problem interface
-# #
-# """
-#     NonSmoothPb
-
-# Abstract type for generic nonsmooth problem.
-# """
-# abstract type NonSmoothPb end
-
-# F(pb::NonSmoothPb, x) = throw(error("F(): Not implemented for problem type $(typeof(pb))."))
-# ∂F_elt(pb::NonSmoothPb, x) = throw(error("subgradient(): Not implemented for problem type $(typeof(pb))."))
-# ∂F_minnormelt(pb::NonSmoothPb, x) = throw(error("minnormsubgradient(): Not implemented for problem type $(typeof(pb))."))
-
-
-# struct SimpleQuad <: NonSmoothPb end
-# F(::SimpleQuad, x) = norm(x, 2)^2
-# ∂F_elt(::SimpleQuad, x) = 2*x
-# ∂F_minnormelt(::SimpleQuad, x) = 2*x
-
-
-
+export enable_debug_timings, disable_debug_timings
 #
 ### solvers
 #

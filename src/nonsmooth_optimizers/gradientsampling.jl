@@ -42,9 +42,31 @@ end
 #
 ### GradientSampling method
 #
+"""
+    update_iterate!(state, gs::GradientSampling, pb)
+
+NOTE: each iteration is costly. This can be explored with NonSmoothProblems.to.
+───────────────────────────────────────────────────────────────────────────────────────────
+Time                   Allocations
+──────────────────────   ───────────────────────
+Tot / % measured:                  45.5s / 2.89%           1.63GiB / 14.5%
+
+Section                            ncalls     time   %tot     avg     alloc   %tot      avg
+───────────────────────────────────────────────────────────────────────────────────────────
+GS 2. minimum norm (sub)gradient       20    1.30s  98.6%  64.9ms    240MiB  99.0%  12.0MiB
+GS 4. Update parameters                20   12.8ms  0.97%   641μs   1.63MiB  0.67%  83.6KiB
+GS 5. diff check                       20   3.04ms  0.23%   152μs    428KiB  0.17%  21.4KiB
+GS 1. point sampling                   20   2.49ms  0.19%   124μs    497KiB  0.20%  24.9KiB
+GS 3. Termination                      20   33.8μs  0.00%  1.69μs      320B  0.00%    16.0B
+───────────────────────────────────────────────────────────────────────────────────────────
+
+Minimum norm subgradient could be computed with GJK algorithm.
+See [https://github.com/JuliaRobotics/EnhancedGJK.jl]
+"""
 function update_iterate!(state, gs::GradientSampling, pb)
     iteration_status = iteration_completed
 
+    @timeit_debug "GS 1. point sampling" begin
     ## 1. Sample m points in 𝔹(x, ϵₖ)
     Random.seed!(123 + state.k)
     for i in 1:gs.m
@@ -53,13 +75,14 @@ function update_iterate!(state, gs::GradientSampling, pb)
         state.xs[i] .*= state.ϵₖ
         state.xs[i] .+= state.x
     end
+    end
 
     ## 2. Find minimal norm element of convex hull at gradients of previous points.
+    @timeit_debug "GS 2. minimum norm (sub)gradient" begin
     # model = Model(with_optimizer(OSQP.Optimizer; polish=true, verbose=false, max_iter=1e8, time_limit=2, eps_abs=1e-6, eps_rel=1e-6))
     # model = Model(with_optimizer(Mosek.Optimizer))
     model = Model(with_optimizer(Ipopt.Optimizer; print_level=0))
 
-    # TODO: check complexity of this part
     t = @variable(model, 0 <= t[1:gs.m+1] <= 1)
     gconvhull = t[end] .* ∂F_elt(pb, state.x) .+ sum(t[i] .* ∂F_elt(pb, state.xs[i]) for i in 1:gs.m)
     @objective(model, Min, dot(gconvhull, gconvhull))
@@ -72,14 +95,18 @@ function update_iterate!(state, gs::GradientSampling, pb)
     end
 
     gᵏ = value.(gconvhull)
+    end
     gᵏ_norm = norm(gᵏ)
 
     ## 3. termination
+    @timeit_debug "GS 3. Termination" begin
     if gᵏ_norm ≤ gs.ν_opt && state.ϵₖ ≤ gs.ϵ_opt
         iteration_status = problem_solved
     end
+    end
 
     ## 4. Update parameters
+    @timeit_debug "GS 4. Update parameters" begin
     ν_next = state.νₖ
     ϵ_next = state.ϵₖ
     tₖ = 1.0
@@ -103,7 +130,9 @@ function update_iterate!(state, gs::GradientSampling, pb)
             @warn("GradientSampling(): linesearch exceeded $(gs.ls_maxit) iterations, no suitable steplength found.")
         end
     end
+    end
 
+    @timeit_debug "GS 5. diff check" begin
     x_next = state.x - tₖ * gᵏ
     if !is_differentiable(pb, x_next)
         @warn("Gradient sampling: F not differentiable at next point, portion to be imùplemented.")
@@ -114,6 +143,7 @@ function update_iterate!(state, gs::GradientSampling, pb)
     state.νₖ = ν_next
     state.x = x_next
     state.k += 1
+    end
 
     return (ϵₖ=state.ϵₖ, νₖ=state.νₖ, it_ls=it_ls, gᵏ_norm=gᵏ_norm), iteration_status
 end

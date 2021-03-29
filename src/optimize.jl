@@ -52,9 +52,9 @@ function optimize!(
     optparams = OptimizerParams()
 ) where {O<:Optimizer}
 
-    # if getfield(NonSmoothSolvers, :timeit_debug_enabled)()
-    #     reset_timer!()
-    # end
+    if getfield(NonSmoothSolvers, :timeit_debug_enabled)()
+        reset_timer!()
+    end
 
     ## Collecting parameters
     iterations_limit = optparams.iterations_limit
@@ -114,13 +114,11 @@ function optimize!(
     Time:        $time_count")
 
 
-    # if getfield(NonSmoothSolvers, :timeit_debug_enabled)()
-    #     printstyled("\n\n")
-    #     printstyled("**********************************\n", color=:red)
-    #     print_timer()
-    #     printstyled("**********************************", color=:red)
-    #     printstyled("\n\n")
-    # end
+    if getfield(NonSmoothSolvers, :timeit_debug_enabled)()
+        printstyled("\n\n")
+        print_timer()
+        printstyled("\n\n")
+    end
 
     return x_final, tr
 end
