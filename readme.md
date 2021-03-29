@@ -10,6 +10,12 @@ This is a work in progress. In particular, there may be bugs in algorithms, and 
 - add acceleration methods of proximal point;
 - test optimization methods;
 
+**Setup** is as follows: after cloning `NonSmoothProblems.jl` and `NonSmoothSolvers.jl`, in a julia REPL (default environment):
+```julia
+]dev --local \path\to\NonSmoothProblems.jl
+]dev --local \path\to\NonSmoothSolvers.jl
+```
+
 ## Algorithms for general nonsmooth optimization
 
 A general nonsmooth optimization problem may be implemented following `NonSmoothProblems.jl`' interface:
