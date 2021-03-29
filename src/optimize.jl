@@ -72,6 +72,10 @@ function optimize!(
     show_trace && display_logs_header(optimizer, pb)
     tr = Vector{OptimizationState}([OptimizationState(F_x = F(pb, initial_x))])
 
+    if show_trace
+        @printf "%4i  %.1e  % .16e\n" iteration time_count F(pb, get_minimizer_candidate(state))
+    end
+
     while !converged && !stopped && iteration < iterations_limit
         iteration += 1
 

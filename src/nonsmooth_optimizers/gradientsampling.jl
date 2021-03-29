@@ -3,11 +3,11 @@ Base.@kwdef struct GradientSampling <: NonSmoothOptimizer
     m::Int64
     β::Float64 = 1e-4
     γ::Float64 = 0.5
-    ϵ_opt::Float64 = 1e-2
-    ν_opt::Float64 = 1e-6
+    ϵ_opt::Float64 = 1e-3
+    ν_opt::Float64 = 1e-5
     θ_ϵ::Float64 = 0.1
     θ_ν::Float64 = 0.1
-    ls_maxit::Int64 = 50
+    ls_maxit::Int64 = 70
 end
 
 GradientSampling(initial_x::AbstractVector) = GradientSampling(m=length(initial_x)+1)
@@ -15,15 +15,15 @@ GradientSampling(initial_x::AbstractVector) = GradientSampling(m=length(initial_
 Base.@kwdef mutable struct GradientSamplingState{Tx}
     x::Tx
     xs::Vector{Tx}
-    ϵₖ::Float64 = 0.1
+    ϵₖ::Float64 = 1e-1
     νₖ::Float64 = 0.1
     k::Int64 = 1
 end
 
 function initial_state(gs::GradientSampling, initial_x, pb)
     return GradientSamplingState(
-        x = initial_x,
-        xs = Vector([initial_x for i in 1:gs.m]),
+        x = copy(initial_x),
+        xs = Vector([zeros(size(initial_x)) for i in 1:gs.m]),
     )
 end
 
@@ -51,10 +51,13 @@ function update_iterate!(state, gs::GradientSampling, pb)
         state.xs[i] .= rand(Normal(), size(state.x))
         state.xs[i] .*= rand()^(1/length(state.x)) / norm(state.xs[i])
         state.xs[i] .*= state.ϵₖ
+        state.xs[i] .+= state.x
     end
 
     ## 2. Find minimal norm element of convex hull at gradients of previous points.
-    model = Model(with_optimizer(OSQP.Optimizer; polish=true, verbose=false, max_iter=1e8, eps_abs=1e-8, eps_rel=1e-8))
+    # model = Model(with_optimizer(OSQP.Optimizer; polish=true, verbose=false, max_iter=1e8, time_limit=2, eps_abs=1e-6, eps_rel=1e-6))
+    # model = Model(with_optimizer(Mosek.Optimizer))
+    model = Model(with_optimizer(Ipopt.Optimizer; print_level=0))
 
     # TODO: check complexity of this part
     t = @variable(model, 0 <= t[1:gs.m+1] <= 1)
@@ -64,8 +67,8 @@ function update_iterate!(state, gs::GradientSampling, pb)
 
     optimize!(model)
 
-    if termination_status(model) ∉ Set([MOI.OPTIMAL, MOI.SLOW_PROGRESS])
-        @warn "ComProx: subproblem of it $n was not solved to optimality" termination_status(model) primal_status(model) dual_status(model)
+    if termination_status(model) ∉ Set([MOI.OPTIMAL, MOI.SLOW_PROGRESS, MOI.LOCALLY_SOLVED])
+        @warn "ComProx: subproblem was not solved to optimality" termination_status(model) primal_status(model) dual_status(model)
     end
 
     gᵏ = value.(gconvhull)

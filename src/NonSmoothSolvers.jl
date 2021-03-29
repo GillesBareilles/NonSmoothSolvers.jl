@@ -8,6 +8,8 @@ using Random
 using Distributions
 
 using OSQP
+using Mosek, MosekTools
+using Ipopt
 
 import JuMP.optimize!
 
