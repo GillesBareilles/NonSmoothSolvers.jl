@@ -26,5 +26,6 @@ Base.@kwdef struct OptimizerParams
     time_limit::Float64 = 30.0
     show_trace::Bool = true
     trace_length::Int64 = 20
-    cvcheckers::Set{ConvergenceChecker} = Set{ConvergenceChecker}([]) #FirstOrderOptimality()
+    cvcheckers::Set{ConvergenceChecker} = Set([])
 end
+

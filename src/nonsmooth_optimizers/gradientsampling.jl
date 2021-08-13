@@ -59,9 +59,6 @@ GS 5. diff check                       20   3.04ms  0.23%   152μs    428KiB  0.
 GS 1. point sampling                   20   2.49ms  0.19%   124μs    497KiB  0.20%  24.9KiB
 GS 3. Termination                      20   33.8μs  0.00%  1.69μs      320B  0.00%    16.0B
 ───────────────────────────────────────────────────────────────────────────────────────────
-
-Minimum norm subgradient could be computed with GJK algorithm.
-See [https://github.com/JuliaRobotics/EnhancedGJK.jl]
 """
 function update_iterate!(state, gs::GradientSampling, pb)
     iteration_status = iteration_completed
@@ -79,8 +76,6 @@ function update_iterate!(state, gs::GradientSampling, pb)
 
     ## 2. Find minimal norm element of convex hull at gradients of previous points.
     @timeit_debug "GS 2. minimum norm (sub)gradient" begin
-    # model = Model(with_optimizer(OSQP.Optimizer; polish=true, verbose=false, max_iter=1e8, time_limit=2, eps_abs=1e-6, eps_rel=1e-6))
-    # model = Model(with_optimizer(Mosek.Optimizer))
     model = Model(with_optimizer(Ipopt.Optimizer; print_level=0))
 
     t = @variable(model, 0 <= t[1:gs.m+1] <= 1)
@@ -135,8 +130,7 @@ function update_iterate!(state, gs::GradientSampling, pb)
     @timeit_debug "GS 5. diff check" begin
     x_next = state.x - tₖ * gᵏ
     if !is_differentiable(pb, x_next)
-        @warn("Gradient sampling: F not differentiable at next point, portion to be imùplemented.")
-        # throw(error("Gradient sampling: F not differentiable at next point, portion to be imùplemented."))
+        @warn("Gradient sampling: F not differentiable at next point, portion to be implemented.")
     end
 
     state.ϵₖ = ϵ_next

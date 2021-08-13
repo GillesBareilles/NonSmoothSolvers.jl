@@ -1,20 +1,21 @@
 module NonSmoothSolvers
 
-using NonSmoothProblems
+import NonSmoothProblems as NSP
 using LinearAlgebra
 using Printf
 using Random
 using Distributions
 using TimerOutputs
+using DataStructures
 
 using JuMP
-using OSQP
-using Mosek, MosekTools
 using Ipopt
 
 import JuMP.optimize!
+import TimerOutputs: enable_debug_timings, disable_debug_timings
 
 export enable_debug_timings, disable_debug_timings
+
 #
 ### solvers
 #
@@ -31,6 +32,7 @@ include("nonsmooth_optimizers/gradientsampling.jl")
 include("nonsmooth_optimizers/ns_BFGS_linesearch.jl")
 include("nonsmooth_optimizers/ns_BFGS.jl")
 
+
 export OptimizerParams
 export optimize!
 
@@ -38,8 +40,5 @@ export optimize!
 export Subgradient
 export GradientSampling
 export NSBFGS
-
-export SimpleQuad
-greet() = print("Hello World!")
 
 end # module

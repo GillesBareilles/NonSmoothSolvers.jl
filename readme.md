@@ -4,8 +4,8 @@ This package implements several algorithms for nonsmooth (nonconvex) optimizatio
 
 This is a work in progress. In particular, there may be bugs in algorithms, and the todo list is:
 - list features of `optimize!`;
+- `GradientSampling`: solve subproblem with `ConvexHullProjection` (with warmstart?)
 - describe interactions with other packages (NonSmoothProblems, OptimPlots, ...);
-- setup doc;
 - bring in nonconvex prox and proximal point;
 - add acceleration methods of proximal point;
 - test optimization methods;
@@ -46,6 +46,18 @@ xfinal_gs, tr = optimize!(pb, o, x, optparams=optparams)
 
 o = NSBFGS()
 xfinal_nsbfgs, tr = optimize!(pb, o, x, optparams=optparams)
+```
+
+Other problems:
+- the historical 'MaxQuad', *Numerical  Optimisation*, BGLS, p. 153 (2nd edition):
+```julia
+pb = MaxQuadBGLS()
+x = zeros(10) .+ 1
+```
+- a maximum of two quadratics:
+```julia
+pb = MaxQuadAL()
+x = zeros(2) .+ 1
 ```
 
 ## Input parameters, output values
