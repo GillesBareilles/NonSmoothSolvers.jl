@@ -42,10 +42,10 @@ x = rand(n)
 optparams = OptimizerParams(iterations_limit=20, trace_length=20)
 
 o = GradientSampling(x)
-xfinal_gs, tr = optimize!(pb, o, x, optparams=optparams)
+xfinal_gs, tr = optimize!(pb, o, x; optparams)
 
 o = NSBFGS()
-xfinal_nsbfgs, tr = optimize!(pb, o, x, optparams=optparams)
+xfinal_nsbfgs, tr = optimize!(pb, o, x; optparams)
 ```
 
 Other problems:
