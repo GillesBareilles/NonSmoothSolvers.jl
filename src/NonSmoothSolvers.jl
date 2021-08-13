@@ -1,6 +1,7 @@
 module NonSmoothSolvers
 
-import NonSmoothProblems as NSP
+using NonSmoothProblems
+const NSP = NonSmoothProblems
 using LinearAlgebra
 using Printf
 using Random
