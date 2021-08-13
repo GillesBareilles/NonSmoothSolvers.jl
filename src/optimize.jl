@@ -4,7 +4,7 @@
 display_logs_header_pre(o) = nothing
 display_logs_header_post(o) = nothing
 
-function display_logs_header(o::Optimizer, pb::NonSmoothPb)
+function display_logs_header(o::Optimizer, pb::NSP.NonSmoothPb)
     display_logs_header_pre(o::Optimizer)
     print("it.   time      F(x)                     step       ")
     display_logs_header_post(o::Optimizer)
