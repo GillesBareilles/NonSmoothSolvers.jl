@@ -21,6 +21,10 @@ export enable_debug_timings, disable_debug_timings
 ### solvers
 #
 abstract type ConvergenceChecker end
+function has_converged(cvchecker::ConvergenceChecker, pb, optimizer, optimizationstate)
+    throw(error("has_converged: not defined for types &(typeof(cvchecker)), &(typeof(pb)), &(typeof(optimizer)), &(typeof(optimizationstate))."))
+end
+
 abstract type Optimizer end
 abstract type OptimizerState end
 abstract type NonSmoothOptimizer <: Optimizer end
@@ -36,7 +40,7 @@ include("nonsmooth_optimizers/ns_BFGS.jl")
 
 export OptimizerParams
 export optimize!
-
+export OptimizerParams
 
 export Subgradient
 export GradientSampling

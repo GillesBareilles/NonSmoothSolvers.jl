@@ -4,14 +4,14 @@
 Stores information after one iteration of the optimizer. Generic information is stored explicitly in the struct,
 custom information may be stored in the field `additionalinfo::NamedTuple`.
 """
-Base.@kwdef struct OptimizationState{T}
+Base.@kwdef struct OptimizationState{Tf, Ti}
     it::Int64 = 0
     time::Float64 = 0.0
-    F_x::Float64 = Inf
-    norm_step::Float64 = -1.0
+    Fx::Tf
+    norm_step::Tf
     ncalls_F::Int64 = 0
     ncalls_∂F_elt::Int64 = 0
-    additionalinfo::T = NamedTuple()
+    additionalinfo::Ti = NamedTuple()
 end
 
 const OptimizationTrace{T} = Vector{OptimizationState{T}}

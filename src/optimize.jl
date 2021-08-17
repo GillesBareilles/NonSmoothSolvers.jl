@@ -17,7 +17,7 @@ display_logs_post(os, optimizer) = nothing
 function display_logs(os::OptimizationState, optimizer)
     print("\033[0m")
 
-    @printf "%4i  %.1e  % .16e  % .3e  " os.it os.time os.F_x os.norm_step
+    @printf "%4i  %.1e  % .16e  % .3e  " os.it os.time os.Fx os.norm_step
     display_logs_post(os, optimizer)
 
     print("\033[0m")
@@ -29,7 +29,7 @@ function build_optimstate(state, optimizer, pb, it, time, x_prev, optimstate_add
     return OptimizationState(
         it = it,
         time = time,
-        F_x = F(pb, get_minimizer_candidate(state)),
+        Fx = F(pb, get_minimizer_candidate(state)),
         norm_step = norm(x_prev - get_minimizer_candidate(state)),
         ncalls_F = 0,
         ncalls_∂F_elt = 1,
@@ -70,7 +70,8 @@ function optimize!(
 
     show_trace && print_header(optimizer)
     show_trace && display_logs_header(optimizer, pb)
-    tr = Vector{OptimizationState}([OptimizationState(F_x = F(pb, initial_x))])
+
+    tr = Vector{OptimizationState}([OptimizationState(Fx = BigFloat(1.0), norm_step = BigFloat(Inf))])
 
     if show_trace
         @printf "%4i  %.1e  % .16e\n" iteration time_count F(pb, get_minimizer_candidate(state))
