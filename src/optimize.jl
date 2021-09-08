@@ -81,11 +81,13 @@ function optimize!(
         iteration += 1
 
         _time = time()
-        optimstate_additionalinfo, iterationstatus = update_iterate!(state, optimizer, pb)
+        @timeit_debug "update_iterate!" optimstate_additionalinfo, iterationstatus = update_iterate!(state, optimizer, pb)
         time_count += time() - _time
 
-        optimizationstate = build_optimstate(state, optimizer, pb, iteration, time_count, x_prev, optimstate_additionalinfo)
-        push!(tr, optimizationstate)
+        @timeit_debug "build_optimstate" begin
+            optimizationstate = build_optimstate(state, optimizer, pb, iteration, time_count, x_prev, optimstate_additionalinfo)
+            push!(tr, optimizationstate)
+        end
 
         ## Display logs and save iteration information
         if show_trace && (mod(iteration, ceil(iterations_limit / optparams.trace_length)) == 0 || iteration==iterations_limit)
@@ -93,9 +95,11 @@ function optimize!(
         end
 
         # Check convergence
-        converged = (iterationstatus == problem_solved)
-        for cvchecker in optparams.cvcheckers
-            converged = converged || has_converged(cvchecker, pb, optimizer, optimizationstate)
+        @timeit_debug "CV check" begin
+            converged = (iterationstatus == problem_solved)
+            for cvchecker in optparams.cvcheckers
+                converged = converged || has_converged(cvchecker, pb, optimizer, optimizationstate)
+            end
         end
 
         stopped_by_time_limit = time_count > optparams.time_limit
