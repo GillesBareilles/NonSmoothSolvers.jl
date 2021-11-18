@@ -12,18 +12,20 @@ end
 
 GradientSampling(initial_x::AbstractVector) = GradientSampling(m=length(initial_x)+1)
 
-Base.@kwdef mutable struct GradientSamplingState{Tx}
-    x::Tx
-    xs::Vector{Tx}
-    ϵₖ::Float64 = 1e-1
-    νₖ::Float64 = 0.1
+Base.@kwdef mutable struct GradientSamplingState{Tf}
+    x::Vector{Tf}
+    ∂gᵢs::Matrix{Tf}
+    ϵₖ::Tf
+    νₖ::Tf
     k::Int64 = 1
 end
 
-function initial_state(gs::GradientSampling, initial_x, pb)
+function initial_state(gs::GradientSampling, initial_x::Vector{Tf}, pb) where {Tf}
     return GradientSamplingState(
-        x = copy(initial_x),
-        xs = Vector([zeros(size(initial_x)) for i in 1:gs.m]),
+        x = initial_x,
+        ∂gᵢs = zeros(Tf, length(initial_x), gs.m+1),
+        ϵₖ = Tf(0.1),
+        νₖ = Tf(0.1),
     )
 end
 
@@ -60,29 +62,26 @@ GS 1. point sampling                   20   2.49ms  0.19%   124μs    497KiB  0.
 GS 3. Termination                      20   33.8μs  0.00%  1.69μs      320B  0.00%    16.0B
 ───────────────────────────────────────────────────────────────────────────────────────────
 """
-function update_iterate!(state, gs::GradientSampling, pb)
+function update_iterate!(state::GradientSamplingState{Tf}, gs::GradientSampling, pb) where Tf
     iteration_status = iteration_completed
+    n = length(state.x)
+    ∂gᵢs = state.∂gᵢs
 
-    @timeit_debug "GS 1. point sampling" begin
+    @timeit_debug "GS 1. sampling points, eval gradients" begin
     ## 1. Sample m points in 𝔹(x, ϵₖ)
     Random.seed!(123 + state.k)
     for i in 1:gs.m
-        state.xs[i] .= rand(Normal(), size(state.x))
-        state.xs[i] .*= rand()^(1/length(state.x)) / norm(state.xs[i])
-        state.xs[i] .*= state.ϵₖ
-        state.xs[i] .+= state.x
+        ∂gᵢ = @view ∂gᵢs[:, i]
+        ∂gᵢ .= rand(Normal(), n)
+        ∂gᵢ .*= state.ϵₖ * rand()^(1/n) / norm(∂gᵢ)
+        ∂gᵢ .+= state.x
+        ∂gᵢ .= ∂F_elt(pb, ∂gᵢ)
     end
+    ∂gᵢs[:, gs.m+1] .= ∂F_elt(pb, state.x)
     end
 
     ## 2. Find minimal norm element of convex hull at gradients of previous points.
     @timeit_debug "GS 2. minimum norm (sub)gradient" begin
-    Tf = Float64
-    ∂gᵢs = zeros(Tf, length(state.x), gs.m+1)
-    for i in 1:gs.m
-        ∂gᵢs[:, i] .= ∂F_elt(pb, state.xs[i])
-    end
-    ∂gᵢs[:, end] .= ∂F_elt(pb, state.x)
-
     set = CHP.SimplexShadow(∂gᵢs)
     x0 = zeros(Tf, gs.m+1)
 
