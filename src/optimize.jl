@@ -71,7 +71,8 @@ function optimize!(
     show_trace && print_header(optimizer)
     show_trace && display_logs_header(optimizer, pb)
 
-    tr = Vector{OptimizationState}([OptimizationState(Fx = BigFloat(1.0), norm_step = BigFloat(Inf))])
+    Tf = eltype(initial_x)
+    tr = Vector{OptimizationState}([OptimizationState(Fx = NSP.F(pb, initial_x), norm_step = Tf(Inf))])
 
     if show_trace
         @printf "%4i  %.1e  % .16e\n" iteration time_count F(pb, get_minimizer_candidate(state))

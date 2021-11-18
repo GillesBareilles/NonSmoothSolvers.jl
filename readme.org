@@ -10,10 +10,9 @@ This is a work in progress. In particular, there may be bugs in algorithms, and 
 - [ ] add acceleration methods of proximal point;
 - [ ] test optimization methods;
 
-**Setup** is as follows: after cloning ~NonSmoothProblems.jl~ and ~NonSmoothSolvers.jl~, in a julia REPL (default environment):
+*Setup* is as follows: in a julia REPL (default environment):
 #+begin_src julia
-]dev --local \path\to\NonSmoothProblems.jl
-]dev --local \path\to\NonSmoothSolvers.jl
+]add https://github.com/GillesBareilles/ConjugateGradient.jl https://github.com/GillesBareilles/ConvexHullProjection.jl https://github.com/GillesBareilles/NonSmoothProblems.jl https://github.com/GillesBareilles/NonSmoothSolvers.jl
 #+end_src
 
 * Algorithms for general nonsmooth optimization

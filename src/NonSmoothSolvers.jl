@@ -9,10 +9,8 @@ using Distributions
 using TimerOutputs
 using DataStructures
 
-using JuMP
-using Ipopt
+using ConvexHullProjection
 
-import JuMP.optimize!
 import TimerOutputs: enable_debug_timings, disable_debug_timings
 
 export enable_debug_timings, disable_debug_timings

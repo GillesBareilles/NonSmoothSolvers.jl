@@ -76,22 +76,22 @@ function update_iterate!(state, gs::GradientSampling, pb)
 
     ## 2. Find minimal norm element of convex hull at gradients of previous points.
     @timeit_debug "GS 2. minimum norm (sub)gradient" begin
-    model = Model(with_optimizer(Ipopt.Optimizer; print_level=0))
-
-    t = @variable(model, 0 <= t[1:gs.m+1] <= 1)
-    gconvhull = t[end] .* ∂F_elt(pb, state.x) .+ sum(t[i] .* ∂F_elt(pb, state.xs[i]) for i in 1:gs.m)
-    @objective(model, Min, dot(gconvhull, gconvhull))
-    @constraint(model, sum(t) == 1)
-
-    optimize!(model)
-
-    if termination_status(model) ∉ Set([MOI.OPTIMAL, MOI.SLOW_PROGRESS, MOI.LOCALLY_SOLVED])
-        @warn "ComProx: subproblem was not solved to optimality" termination_status(model) primal_status(model) dual_status(model)
+    Tf = Float64
+    ∂gᵢs = zeros(Tf, length(state.x), gs.m+1)
+    for i in 1:gs.m
+        ∂gᵢs[:, i] .= ∂F_elt(pb, state.xs[i])
     end
+    ∂gᵢs[:, end] .= ∂F_elt(pb, state.x)
 
-    gᵏ = value.(gconvhull)
-    end
+    set = CHP.SimplexShadow(∂gᵢs)
+    x0 = zeros(Tf, gs.m+1)
+
+    α, str = CHP.optimize(set, x0)
+
+    gᵏ = ∂gᵢs * α
     gᵏ_norm = norm(gᵏ)
+    end
+
 
     ## 3. termination
     @timeit_debug "GS 3. Termination" begin
