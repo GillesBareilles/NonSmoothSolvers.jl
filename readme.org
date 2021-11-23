@@ -4,10 +4,10 @@ This package implements several algorithms for nonsmooth (nonconvex) optimizatio
 
 This is a work in progress. In particular, there may be bugs in algorithms, and the todo list is:
 - [ ] list features of ~optimize!~;
-- [ ] ~GradientSampling~: solve subproblem with ~ConvexHullProjection~ (with warmstart?)
+- [X] ~GradientSampling~: solve subproblem with ~ConvexHullProjection~ (with warmstart?)
 - [ ] describe interactions with other packages (NonSmoothProblems, OptimPlots, ...);
-- [ ] bring in nonconvex prox and proximal point;
-- [ ] add acceleration methods of proximal point;
+# - [ ] bring in nonconvex prox and proximal point;
+# - [ ] add acceleration methods of proximal point;
 - [ ] test optimization methods;
 
 *Setup* is as follows: in a julia REPL (default environment):
@@ -15,9 +15,21 @@ This is a work in progress. In particular, there may be bugs in algorithms, and 
 ]add https://github.com/GillesBareilles/ConjugateGradient.jl https://github.com/GillesBareilles/ConvexHullProjection.jl https://github.com/GillesBareilles/NonSmoothProblems.jl https://github.com/GillesBareilles/NonSmoothSolvers.jl
 #+end_src
 
-* Algorithms for general nonsmooth optimization
+* Solvers
+The generic solvers implemented are:
+- Gradient Sampling
+  #+begin_quote
+*Gradient Sampling Methods for Nonsmooth Optimization*, J.V. Burke, F.E. Curtis, A.S. Lewis, M.L. Overton, L.E.A. Sims, 2018.
+  #+end_quote
+- Nonsmooth BFGS
+  #+begin_quote
+*Nonsmooth optimization via quasi-Newton methods*, Adrian S. Lewis, Michael L. Overton, 2012
+  #+end_quote
 
-A general nonsmooth optimization problem may be implemented following ~NonSmoothProblems.jl~' interface:
+* Usage
+
+** Defining a problem
+A general nonsmooth optimization problem may be implemented following [[https://github.com/GillesBareilles/NonSmoothProblems.jl][~NonSmoothProblems.jl~]]' interface:
 #+begin_src julia
 using NonSmoothProblems
 using NonSmoothSolvers
@@ -30,19 +42,10 @@ F(::Simplel1, x) = norm(x, 1)
 is_differentiable(::Simplel1, x) = length(filter(xᵢ -> xᵢ == 0, x)) > 0
 #+end_src
 
-** Solvers
-The generic solvers implemented are:
-- Gradient Sampling, following
-  #+begin_quote
-*Gradient Sampling Methods for Nonsmooth Optimization*, J.V. Burke, F.E. Curtis, A.S. Lewis, M.L. Overton, L.E.A. Simões, 2018.
-  #+end_quote
-- Nonsmooth BFGS, following
-  #+begin_quote
-*Nonsmooth optimization via quasi-Newton methods*, Adrian S. Lewis, Michael L. Overton, 2012
-  #+end_quote
+Note that [[https://github.com/GillesBareilles/NonSmoothProblems.jl][~NonSmoothProblems.jl~]] implements some nonsmooth problems (maximum of quadratics, maximum eigenvalue).
 
-** Examples
-They are used as follows:
+** Running a solver
+
 #+begin_src julia
 n = 10
 pb = Simplel1()
