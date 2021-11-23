@@ -10,6 +10,9 @@ using TimerOutputs
 using DataStructures
 
 using ConvexHullProjection
+using Infiltrator
+
+const NSS = NonSmoothSolvers
 
 import TimerOutputs: enable_debug_timings, disable_debug_timings
 
@@ -35,6 +38,7 @@ include("nonsmooth_optimizers/gradientsampling.jl")
 include("nonsmooth_optimizers/ns_BFGS_linesearch.jl")
 include("nonsmooth_optimizers/ns_BFGS.jl")
 
+export NSS
 
 export OptimizerParams
 export optimize!

@@ -16,52 +16,47 @@ function linesearch_nsbfgs(pb, xₖ, ∇fₖ, d)
         d .*= -1.0
     end
 
-    α = 1
-    α_low, α_up = 0, Inf
+    t = 1.0
+    α, β = 0.0, Inf
     A_t, W_t = false, false
 
-    F_x = F(pb, xₖ)
+    Fₖ = F(pb, xₖ)
     F_cand = Inf
     x_cand = copy(xₖ)
 
-    A(t) = (F_x + ω₁*α*dh₀ ≥ F_cand)
-    W(t) = (is_differentiable(pb, x_cand) && dot(∂F_elt(pb, x_cand+t*d), d) > ω₂ * dh₀)
-
     it_ls = 0
+    ncalls_∂F_elt = 0
     validpoint = false
     while !validpoint
-        x_cand = xₖ + α * d
+        x_cand .= xₖ .+ t .* d
         F_cand = F(pb, x_cand)
 
-        if F_x > F_cand > F_x - 3*eps(F_cand)
+        if Fₖ > F_cand > Fₖ - 3*eps(F_cand)
             @warn "Linesearch: reached conditionning of funtion here" it_ls
-            # @printf "F_x        : %.16e\n" F_x
-            # @printf "F_cand     : %.16e\n" F_cand
-            # @printf "eps(F_cand): %.16e\n" eps(F_cand)
             break
         end
 
-        A_α, W_α = A(α), W(α)
-        if A_α && W_α
-            # α = 1 should be accepted for superlinear convergence.
-            validpoint = true
-            break
+        Aₜ = (Fₖ + ω₁*t*dh₀ ≥ F_cand)
+        Wₜ = false
+        if is_differentiable(pb, x_cand)
+            Wₜ = (dot(∂F_elt(pb, x_cand), d) > ω₂ * dh₀)
+            ncalls_∂F_elt += 1
         end
 
-        if !A_α
-            α_up = α
 
-            α = (α_up + α_low) / 2
-        elseif !W_α
-            α_low = α
-
-            if isinf(α_up)
-                α = τₑ * α_low
-            else
-                α = (α_up + α_low) / 2
-            end
+        if !Aₜ
+            β = t
+        elseif !Wₜ
+            α = t
         else
             validpoint = true
+            break
+        end
+
+        if !isinf(β)
+            t = (α + β) / 2
+        else
+            t = 2 * α
         end
 
         it_ls += 1
@@ -69,11 +64,15 @@ function linesearch_nsbfgs(pb, xₖ, ∇fₖ, d)
     end
 
     if !A_t
-        @debug "Linesearch: no suficient decrease" F_cand F_x + ω₁*α*dh_0
+        @debug "Linesearch: no suficient decrease" F_cand Fₖ + ω₁*t*dh_0
     end
     if !W_t
-        @debug "Linesearch: too small step" F_x + ω₂*α*dh_0 F_cand
+        @debug "Linesearch: too small step" F_x + ω₂*t*dh_0 F_cand
     end
 
-    return α, it_ls
+    return t, (;
+               it_ls,
+               F = 1+it_ls,
+               ∂F_elt = ncalls_∂F_elt,
+               )
 end

@@ -138,7 +138,15 @@ function update_iterate!(state::GradientSamplingState{Tf}, gs::GradientSampling,
     state.k += 1
     end
 
-    return (ϵₖ=state.ϵₖ, νₖ=state.νₖ, it_ls=it_ls, gᵏ_norm=gᵏ_norm), iteration_status
+    return (;
+            ϵₖ = state.ϵₖ,
+            νₖ = state.νₖ,
+            it_ls,
+            gᵏ_norm,
+            F = 2 + it_ls,              # orcale calls
+            ∂F_elt = gs.m+1,
+            is_differentiable = 1,
+            ), iteration_status
 end
 
 

@@ -40,21 +40,26 @@ end
 function update_iterate!(state, bfgs::NSBFGS, pb)
     iteration_status = iteration_completed
 
-    if state.∇f != ∂F_elt(pb, state.x)
-        @warn state.∇f ∂F_elt(pb, state.x) norm(state.∇f - ∂F_elt(pb, state.x))
-        throw(error())
-    end
+    dₖ = similar(state.∇f)
+    x_next = similar(state.x)
 
     ## 1. Compute descent direction
-    dₖ = - state.Hₖ * state.∇f
+    @timeit_debug "1. Descent direction" begin
+    dₖ .= -1 .* state.Hₖ * state.∇f
+    end
 
     ## 2. Execute linesearch
-    tₖ, ls_niter = linesearch_nsbfgs(pb, state.x, state.∇f, dₖ)
+    @timeit_debug "2. Linesearch" begin
+    tₖ, ls_ncalls = linesearch_nsbfgs(pb, state.x, state.∇f, dₖ)
+    end
 
-    x_next = state.x + tₖ * dₖ
+    @timeit_debug "3. Step, subgradient" begin
+    x_next .= state.x .+ tₖ .* dₖ
     state.∇f_next .= ∂F_elt(pb, x_next)
+    end
 
-    ## 3. CHeck diff at new point
+    ## 3. Check diff at new point
+    @timeit_debug "4. Diff check, stop test" begin
     if !is_differentiable(pb, x_next)
         @warn "Algorithm breaks down (in theory)"
         @warn "Linesearch returned point of nondifferentiability."
@@ -64,9 +69,11 @@ function update_iterate!(state, bfgs::NSBFGS, pb)
     if norm(state.∇f_next) ≤ bfgs.ϵ_opt
         iteration_status = problem_solved
     end
+    end
 
     ## 4. Update BFGS matrix
-    sₖ = x_next - state.x
+    @timeit_debug "5. BFGS update" begin
+    sₖ = tₖ .* dₖ
     yₖ = state.∇f_next - state.∇f
 
     dot_yₖ_sₖ = dot(yₖ, sₖ)
@@ -86,13 +93,20 @@ function update_iterate!(state, bfgs::NSBFGS, pb)
     else
         @warn "No update of BFGS inverse hessian approximation here" dot_yₖ_sₖ
     end
+    end
 
-    # @show eigvals(state.Hₖ)
+
     state.x .= x_next
     state.∇f .= state.∇f_next
 
-
-    return (dot_yₖ_sₖ=dot_yₖ_sₖ, ls_niter=ls_niter, ∇F_nextnorm=norm(state.∇f), dnorm=norm(dₖ)), iteration_status
+    return (;dot_yₖ_sₖ,
+            ls_niter = ls_ncalls.it_ls,
+            ∇F_nextnorm=norm(state.∇f),
+            dnorm=norm(dₖ),
+            F = ls_ncalls.F,                # oracle_calls
+            ∂F_elt = 1 + ls_ncalls.∂F_elt,
+            is_differentiable = 1
+            ), iteration_status
 end
 
 
