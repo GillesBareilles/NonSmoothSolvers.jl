@@ -11,6 +11,7 @@ using DataStructures
 
 using ConvexHullProjection
 using Infiltrator
+using DocStringExtensions
 
 const NSS = NonSmoothSolvers
 

@@ -24,8 +24,12 @@ function display_logs(os::OptimizationState, optimizer)
     println()
 end
 
-function build_optimstate(state, optimizer, pb, it, time, x_prev, optimstate_additionalinfo)
-    ## TODO: add possibility for user to log additional information contained in state into the NamedTuple.
+function build_optimstate(state, optimizer, pb, it, time, x_prev, optimstate_additionalinfo; optimstate_extensions = OrderedDict{Symbol, Function}())
+    osextensions = NamedTuple(
+        indname => indcallback(optimizer, state)
+        for (indname, indcallback) in optimstate_extensions
+            )
+
     return OptimizationState(
         it = it,
         time = time,
@@ -33,7 +37,21 @@ function build_optimstate(state, optimizer, pb, it, time, x_prev, optimstate_add
         norm_step = norm(x_prev - get_minimizer_candidate(state)),
         ncalls_F = 0,
         ncalls_∂F_elt = 1,
-        additionalinfo = optimstate_additionalinfo,
+        additionalinfo = merge(optimstate_additionalinfo, osextensions),
+    )
+end
+
+function build_initoptimstate(state, optimizer, pb; optimstate_extensions)
+    return OptimizationState(
+        it = 0,
+        time = 0.0,
+        Fx = F(pb, get_minimizer_candidate(state)),
+        norm_step = 0.0,
+        ncalls_F = 0,
+        ncalls_∂F_elt = 0,
+        additionalinfo = NamedTuple(
+            indname => indcallback(optimizer, state) for (indname, indcallback) in optimstate_extensions
+        ),
     )
 end
 
@@ -43,12 +61,33 @@ end
     problem_solved
 end
 
+"""
+    $TYPEDSIGNATURES
+
+Call the `optimizer` on problem `pb`, with initial point `initial_x`. Returns a
+tuple containing the final iterate vector and a trace.
+
+Features:
+- timing of the `update_iterate` method only;
+- saves basic information of each iteration in a vector of `OptimizationState`,
+  the so-called trace;
+- the information saved at each iterate may be enriched by the user by providing
+  a name and callback function via the `optimstate_extension` argument.
+
+### Example
+```julia
+getx(o, os) = os.x
+optimstate_extensions = OrderedDict{Symbol, Function}(:x => getx)
+
+optimize!(pb, o, xclose; optparams, optimstate_extensions)
+```
+"""
 function optimize!(
     pb,
     optimizer::O,
     initial_x;
     state = nothing,
-    optimstate_extensions = [],
+    optimstate_extensions::OrderedDict{Symbol,Function} = OrderedDict{Symbol,Function}(),
     optparams = OptimizerParams()
 ) where {O<:Optimizer}
 
@@ -71,8 +110,9 @@ function optimize!(
     show_trace && print_header(optimizer)
     show_trace && display_logs_header(optimizer, pb)
 
-    Tf = eltype(initial_x)
-    tr = Vector{OptimizationState}([OptimizationState(Fx = NSP.F(pb, initial_x), norm_step = Tf(Inf))])
+    tr = Vector{OptimizationState}([
+        build_initoptimstate(state, optimizer, pb; optimstate_extensions)
+    ])
 
     if show_trace
         @printf "%4i  %.1e  % .16e\n" iteration time_count F(pb, get_minimizer_candidate(state))
@@ -86,12 +126,12 @@ function optimize!(
         time_count += time() - _time
 
         @timeit_debug "build_optimstate" begin
-            optimizationstate = build_optimstate(state, optimizer, pb, iteration, time_count, x_prev, optimstate_additionalinfo)
+            optimizationstate = build_optimstate(state, optimizer, pb, iteration, time_count, x_prev, optimstate_additionalinfo; optimstate_extensions)
             push!(tr, optimizationstate)
         end
 
         ## Display logs and save iteration information
-        if show_trace && (mod(iteration, ceil(iterations_limit / optparams.trace_length)) == 0 || iteration==iterations_limit)
+        if show_trace && (mod(iteration, ceil(iterations_limit / optparams.trace_length)) == 0 || iteration == iterations_limit)
             display_logs(optimizationstate, optimizer)
         end
 
