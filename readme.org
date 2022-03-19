@@ -5,6 +5,14 @@ This package implements several algorithms for nonsmooth (nonconvex) optimizatio
 This is a work in progress. In particular, there may be bugs in algorithms, and the todo list is:
 - [ ] list features of ~optimize!~;
 - [X] ~GradientSampling~: solve subproblem with ~ConvexHullProjection~ (with warmstart?)
+- [ ] ~VUalg~:
+  - [ ] check that sequence of null steps behaves as it should on a simple problem
+  - [ ] solve subproblems with CHP in stead of OSQP
+  - [ ] add l-BFGS strategy to perform quasi-Newton steps
+  - [ ] investigate \sigma, \mu, \epsilon and how they should be set
+  - [ ] document main functions
+  - [ ] add tests for the subproblem procedure on simple cases
+  - [ ] go for variable type method
 - [ ] describe interactions with other packages (NonSmoothProblems, OptimPlots, ...);
 # - [ ] bring in nonconvex prox and proximal point;
 # - [ ] add acceleration methods of proximal point;

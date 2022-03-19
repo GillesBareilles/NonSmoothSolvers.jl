@@ -38,6 +38,7 @@ include("nonsmooth_optimizers/subgradient.jl")
 include("nonsmooth_optimizers/gradientsampling.jl")
 include("nonsmooth_optimizers/ns_BFGS_linesearch.jl")
 include("nonsmooth_optimizers/ns_BFGS.jl")
+include("nonsmooth_optimizers/VUalgo.jl")
 
 export NSS
 
@@ -48,5 +49,7 @@ export OptimizerParams
 export Subgradient
 export GradientSampling
 export NSBFGS
+
+export VUalg
 
 end # module
