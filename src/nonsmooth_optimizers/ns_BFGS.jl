@@ -1,10 +1,9 @@
-
-Base.@kwdef struct NSBFGS <: NonSmoothOptimizer
-    ϵ_opt::Float64 = 1e-8
+Base.@kwdef struct NSBFGS{Tf} <: Optimizer{Tf}
+    ϵ_opt::Tf = 1e-8
 end
 
 
-Base.@kwdef mutable struct NSBFGSState{Tf}
+Base.@kwdef mutable struct NSBFGSState{Tf} <: OptimizerState{Tf}
     x::Vector{Tf}
     ∇f::Vector{Tf}
     ∇f_next::Vector{Tf}

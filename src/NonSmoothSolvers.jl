@@ -27,9 +27,9 @@ function has_converged(cvchecker::ConvergenceChecker, pb, optimizer, optimizatio
     throw(error("has_converged: not defined for types &(typeof(cvchecker)), &(typeof(pb)), &(typeof(optimizer)), &(typeof(optimizationstate))."))
 end
 
-abstract type Optimizer end
-abstract type OptimizerState end
-abstract type NonSmoothOptimizer <: Optimizer end
+abstract type Optimizer{Tf} end
+abstract type OptimizerState{Tf} end
+abstract type NonSmoothOptimizer{Tf} <: Optimizer{Tf} end
 
 include("solver_types.jl")
 include("optimize.jl")

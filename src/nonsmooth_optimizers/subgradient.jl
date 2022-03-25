@@ -1,8 +1,8 @@
-struct Subgradient <: NonSmoothOptimizer end
+struct Subgradient{Tf} <: NonSmoothOptimizer{Tf} end
 
-Base.@kwdef mutable struct SubgradientState{Tx}
-    x::Tx           # point
-    v::Tx           # subgradient
+Base.@kwdef mutable struct SubgradientState{Tf} <: OptimizerState{Tf}
+    x::Vector{Tf}           # point
+    v::Vector{Tf}           # subgradient
     k::Int64 = 1
 end
 

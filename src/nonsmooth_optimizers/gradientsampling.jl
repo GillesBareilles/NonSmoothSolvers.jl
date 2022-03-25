@@ -1,18 +1,18 @@
 
-Base.@kwdef struct GradientSampling <: NonSmoothOptimizer
+Base.@kwdef struct GradientSampling{Tf} <: Optimizer{Tf}
     m::Int64
-    β::Float64 = 1e-4
-    γ::Float64 = 0.5
-    ϵ_opt::Float64 = 1e-3
-    ν_opt::Float64 = 1e-5
-    θ_ϵ::Float64 = 0.1
-    θ_ν::Float64 = 0.1
+    β::Tf = 1e-4
+    γ::Tf = 0.5
+    ϵ_opt::Tf = 1e-3
+    ν_opt::Tf = 1e-5
+    θ_ϵ::Tf = 0.1
+    θ_ν::Tf = 0.1
     ls_maxit::Int64 = 70
 end
 
 GradientSampling(initial_x::AbstractVector) = GradientSampling(m=length(initial_x)+1)
 
-Base.@kwdef mutable struct GradientSamplingState{Tf}
+Base.@kwdef mutable struct GradientSamplingState{Tf} <: OptimizerState{Tf}
     x::Vector{Tf}
     ∂gᵢs::Matrix{Tf}
     ϵₖ::Tf
@@ -20,7 +20,7 @@ Base.@kwdef mutable struct GradientSamplingState{Tf}
     k::Int64 = 1
 end
 
-function initial_state(gs::GradientSampling, initial_x::Vector{Tf}, pb) where {Tf}
+function initial_state(gs::GradientSampling{Tf}, initial_x::Vector{Tf}, pb) where {Tf}
     return GradientSamplingState(
         x = initial_x,
         ∂gᵢs = zeros(Tf, length(initial_x), gs.m+1),

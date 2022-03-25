@@ -41,12 +41,12 @@ function build_optimstate(state, optimizer, pb, it, time, x_prev, optimstate_add
     )
 end
 
-function build_initoptimstate(state, optimizer, pb; optimstate_extensions)
+function build_initoptimstate(state::Ts, optimizer, pb; optimstate_extensions) where {Tf, Ts <: OptimizerState{Tf}}
     return OptimizationState(
         it = 0,
         time = 0.0,
         Fx = F(pb, get_minimizer_candidate(state)),
-        norm_step = 0.0,
+        norm_step = Tf(0.0),
         ncalls_F = 0,
         ncalls_∂F_elt = 0,
         additionalinfo = NamedTuple(
@@ -104,6 +104,8 @@ function optimize!(
     converged = false
     stopped = false
     time_count = 0.0
+    stopped_by_updatefailure = false
+    stopped_by_time_limit = false
 
     x_prev = copy(initial_x)
 
@@ -143,8 +145,9 @@ function optimize!(
             end
         end
 
+        stopped_by_updatefailure = (iterationstatus == iteration_failed)
         stopped_by_time_limit = time_count > optparams.time_limit
-        stopped = stopped_by_time_limit
+        stopped = stopped_by_time_limit || stopped_by_updatefailure
         x_prev .= get_minimizer_candidate(state)
     end
 
@@ -155,6 +158,8 @@ function optimize!(
 * status:
     initial point value:    $(F(pb, initial_x))
     final point value:      $(F(pb, x_final))
+    stopped by it failure:  $(stopped_by_updatefailure)
+    stopped by time:        $(stopped_by_time_limit)
 * Counters:
     Iterations:  $iteration
     Time:        $time_count")
