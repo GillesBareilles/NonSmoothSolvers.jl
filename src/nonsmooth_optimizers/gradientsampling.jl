@@ -48,19 +48,23 @@ end
     update_iterate!(state, gs::GradientSampling, pb)
 
 NOTE: each iteration is costly. This can be explored with NonSmoothProblems.to.
-───────────────────────────────────────────────────────────────────────────────────────────
-Time                   Allocations
-──────────────────────   ───────────────────────
-Tot / % measured:                  45.5s / 2.89%           1.63GiB / 14.5%
+On the maxquadBGLS problem
+ ────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                            Time                    Allocations
+                                                   ───────────────────────   ────────────────────────
+                 Tot / % measured:                      103ms /  93.9%           9.50MiB /  96.1%
 
-Section                            ncalls     time   %tot     avg     alloc   %tot      avg
-───────────────────────────────────────────────────────────────────────────────────────────
-GS 2. minimum norm (sub)gradient       20    1.30s  98.6%  64.9ms    240MiB  99.0%  12.0MiB
-GS 4. Update parameters                20   12.8ms  0.97%   641μs   1.63MiB  0.67%  83.6KiB
-GS 5. diff check                       20   3.04ms  0.23%   152μs    428KiB  0.17%  21.4KiB
-GS 1. point sampling                   20   2.49ms  0.19%   124μs    497KiB  0.20%  24.9KiB
-GS 3. Termination                      20   33.8μs  0.00%  1.69μs      320B  0.00%    16.0B
-───────────────────────────────────────────────────────────────────────────────────────────
+ Section                                   ncalls     time    %tot     avg     alloc    %tot      avg
+ ────────────────────────────────────────────────────────────────────────────────────────────────────
+ update_iterate!                              100   95.6ms   98.7%   956μs   8.92MiB   97.8%  91.4KiB
+   GS 2. minimum norm (sub)gradient           100   83.3ms   86.0%   833μs   3.56MiB   39.0%  36.4KiB
+   GS 1. sampling points, eval gradients      100   7.39ms    7.6%  73.9μs   3.85MiB   42.2%  39.4KiB
+   GS 4. Update parameters                    100   4.24ms    4.4%  42.4μs   1.40MiB   15.3%  14.3KiB
+   GS 5. diff check                           100    288μs    0.3%  2.88μs    117KiB    1.3%  1.17KiB
+   GS 3. Termination                          100   41.1μs    0.0%   411ns     0.00B    0.0%    0.00B
+ build_optimstate                             100   1.19ms    1.2%  11.9μs    207KiB    2.2%  2.07KiB
+ CV check                                     100   47.0μs    0.0%   470ns     0.00B    0.0%    0.00B
+ ────────────────────────────────────────────────────────────────────────────────────────────────────
 """
 function update_iterate!(state::GradientSamplingState{Tf}, gs::GradientSampling, pb) where Tf
     iteration_status = iteration_completed
