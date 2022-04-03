@@ -3,14 +3,14 @@ Base.@kwdef struct GradientSampling{Tf} <: Optimizer{Tf}
     m::Int64
     β::Tf = 1e-4
     γ::Tf = 0.5
-    ϵ_opt::Tf = 1e-3
-    ν_opt::Tf = 1e-5
+    ϵ_opt::Tf = 1e-6
+    ν_opt::Tf = 1e-6
     θ_ϵ::Tf = 0.1
     θ_ν::Tf = 0.1
     ls_maxit::Int64 = 70
 end
 
-GradientSampling(initial_x::AbstractVector) = GradientSampling(m=length(initial_x)+1)
+GradientSampling(initial_x::AbstractVector) = GradientSampling(m=length(initial_x) * 2)
 
 Base.@kwdef mutable struct GradientSamplingState{Tf} <: OptimizerState{Tf}
     x::Vector{Tf}
@@ -64,30 +64,22 @@ GS 3. Termination                      20   33.8μs  0.00%  1.69μs      320B  0
 """
 function update_iterate!(state::GradientSamplingState{Tf}, gs::GradientSampling, pb) where Tf
     iteration_status = iteration_completed
-    n = length(state.x)
     ∂gᵢs = state.∂gᵢs
 
     @timeit_debug "GS 1. sampling points, eval gradients" begin
     ## 1. Sample m points in 𝔹(x, ϵₖ)
-    Random.seed!(123 + state.k)
-    for i in 1:gs.m
-        ∂gᵢ = @view ∂gᵢs[:, i]
-        ∂gᵢ .= rand(Normal(), n)
-        ∂gᵢ .*= state.ϵₖ * rand()^(1/n) / norm(∂gᵢ)
-        ∂gᵢ .+= state.x
-        ∂gᵢ .= ∂F_elt(pb, ∂gᵢ)
-    end
-    ∂gᵢs[:, gs.m+1] .= ∂F_elt(pb, state.x)
+    samplegradients!(∂gᵢs, pb, state.x, state.ϵₖ)
     end
 
     ## 2. Find minimal norm element of convex hull at gradients of previous points.
     @timeit_debug "GS 2. minimum norm (sub)gradient" begin
-    set = CHP.SimplexShadow(∂gᵢs)
-    x0 = zeros(Tf, gs.m+1)
+    alphaOSQP = find_minimumnormelt_OSQP(∂gᵢs)
+    # printstyled("--> CHP\n", color = :red)
+    # @time alphaCHP = find_minimumnormelt_CHP(∂gᵢs)
+    # @show alphaOSQP
+    # @show alphaCHP
 
-    α, str = CHP.optimize(set, x0)
-
-    gᵏ = ∂gᵢs * α
+    gᵏ = ∂gᵢs * alphaOSQP
     gᵏ_norm = norm(gᵏ)
     end
 
@@ -96,6 +88,7 @@ function update_iterate!(state::GradientSamplingState{Tf}, gs::GradientSampling,
     @timeit_debug "GS 3. Termination" begin
     if gᵏ_norm ≤ gs.ν_opt && state.ϵₖ ≤ gs.ϵ_opt
         iteration_status = problem_solved
+        @info "termination condition found"
     end
     end
 
@@ -109,27 +102,36 @@ function update_iterate!(state::GradientSamplingState{Tf}, gs::GradientSampling,
         ν_next = gs.θ_ν * state.νₖ
         ϵ_next = gs.θ_ϵ * state.ϵₖ
         tₖ = 0.0
+        @info "reducing sampling size"
     else
+        # This test is not costly, and may help detect difficult cases
+        gtd = dot(gᵏ, ∂F_elt(pb, state.x))
+        if gtd <= 0
+            @warn "not descent direction, gtd = $gtd"
+        end
+
         ν_next = state.νₖ
         ϵ_next = state.ϵₖ
         tₖ = 1.0
 
         fₖ = F(pb, state.x)
-        while !(F(pb, state.x - tₖ * gᵏ) < fₖ - gs.β * tₖ * gᵏ_norm^2) && (it_ls < gs.ls_maxit)
+        while !(F(pb, state.x - tₖ * gᵏ) < fₖ - gs.β * tₖ * gᵏ_norm^2)
             tₖ *= gs.γ
             it_ls += 1
+
+            (it_ls > gs.ls_maxit) && break
+            (norm(gᵏ) * tₖ < 10*eps(Tf)) && break
         end
 
-        if it_ls == gs.ls_maxit
-            @warn("GradientSampling(): linesearch exceeded $(gs.ls_maxit) iterations, no suitable steplength found.")
-        end
+        (it_ls == gs.ls_maxit) && @warn("GradientSampling(): linesearch exceeded $(gs.ls_maxit) iterations, no suitable steplength found.")
+        (norm(gᵏ) * tₖ < 10*eps(Tf)) && @warn("Linesearch reached numerical precision")
     end
     end
 
     @timeit_debug "GS 5. diff check" begin
     x_next = state.x - tₖ * gᵏ
     if !is_differentiable(pb, x_next)
-        @warn("Gradient sampling: F not differentiable at next point, portion to be implemented.")
+        @error("Gradient sampling: F not differentiable at next point, portion to be implemented.")
     end
 
     state.ϵₖ = ϵ_next
@@ -149,6 +151,55 @@ function update_iterate!(state::GradientSamplingState{Tf}, gs::GradientSampling,
             ), iteration_status
 end
 
-
-
 get_minimizer_candidate(state::GradientSamplingState) = state.x
+
+
+using SparseArrays
+function find_minimumnormelt_OSQP(∂gᵢs)
+    n, nsamples = size(∂gᵢs)
+
+    P = sparse(∂gᵢs' * ∂gᵢs)
+    q = zeros(nsamples)
+    A = sparse(vcat(Diagonal(1.0I, nsamples), ones(nsamples)'))
+    l = zeros(nsamples+1)
+    l[end] = 1
+    u = Inf * ones(nsamples+1)
+    u[end] = 1
+
+    # Solve problem
+    options = Dict(:verbose => false,
+                   :polish => true,
+                   :eps_abs => 1e-06,
+                   :eps_rel => 1e-06,
+                   :max_iter => 5000)
+    model = OSQP.Model()
+    OSQP.setup!(model; P=P, q=q, A=A, l=l, u=u, options...)
+    results = OSQP.solve!(model)
+    return results.x
+end
+
+function find_minimumnormelt_CHP(∂gᵢs::Matrix{Tf}) where Tf
+    set = CHP.SimplexShadow(∂gᵢs)
+    x0 = zeros(Tf, size(∂gᵢs, 2))
+
+    showtermination = true
+    showtrace = true
+    showls = false
+    α, str = CHP.optimize(set, x0; showtermination, showtrace, showls, maxiter = 13)
+    return α
+end
+
+function samplegradients!(∂gᵢs, pb, x, ϵₖ)
+    n = size(∂gᵢs, 1)
+    nsamples = size(∂gᵢs, 2) - 1
+
+    for i in 1:nsamples
+        ∂gᵢ = @view ∂gᵢs[:, i]
+        ∂gᵢ .= rand(MvNormal(zeros(n), ScalMat(n, 1.0)))
+        ∂gᵢ .*= ϵₖ * rand()^(1/n) / norm(∂gᵢ)
+        ∂gᵢ .+= x
+        ∂gᵢ .= ∂F_elt(pb, ∂gᵢ)
+    end
+    ∂gᵢs[:, end] .= ∂F_elt(pb, x)
+    return
+end
