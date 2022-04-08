@@ -1,5 +1,9 @@
+"""
+    $TYPEDSIGNATURES
 
-Base.@kwdef struct GradientSampling{Tf} <: Optimizer{Tf}
+Gradient sampling algorthm.
+"""
+Base.@kwdef struct GradientSampling{Tf} <: NonSmoothOptimizer{Tf}
     m::Int64
     β::Tf = 1e-4
     γ::Tf = 0.5
@@ -158,7 +162,6 @@ end
 get_minimizer_candidate(state::GradientSamplingState) = state.x
 
 
-using SparseArrays
 function find_minimumnormelt_OSQP(∂gᵢs)
     n, nsamples = size(∂gᵢs)
 

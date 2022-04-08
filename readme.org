@@ -88,3 +88,24 @@ xfinal_nsbfgs, tr = optimize!(pb, o, x; optparams, optimstate_extensions)
 
 ** Notes
 Method calls may be (roughly) timed using ~TimerOutputs~. This functionality is turned on/off by calling ~TimerOutputs.enable_debug_timings(NonSmoothProblems)~ and ~TimerOutputs.disable_debug_timings(NonSmoothProblems)~.
+*** Efficiency of nsBFGS
+Profiling of the nsBFGS shows that more than 90% of the time is spent in the line search, calling oracles `F`, `∂F_elt` and `is_differentiable`.
+
+In some cases it faster to compute all these at once rather than separately.
+```julia
+using NonSmoothProblems, NonSmoothSolvers, StatProfilerHTML
+pb = MaxQuadBGLS(Float64)
+o = NSBFGS{Float64}()
+function toto(n)
+    for i = 1:n
+        state=NSS.initial_state(o, ones(10), pb)
+        NSS.update_iterate!(state, o, pb)
+    end
+end
+toto(1); @profilehtml toto(10000)
+```
+
+*** Efficiency of gradient sampling
+Same method as above, with `o = GradientSampling(x)`.
+
+Most of the time is spent with the resolution of the QP.

@@ -2,22 +2,27 @@
 ## Print and logs
 #
 display_logs_header_pre(o) = nothing
+display_logs_header_common(o::To) where {Tf, To <: NonSmoothOptimizer{Tf}} = print("it.   time      F(x)                     step       ")
 display_logs_header_post(o) = nothing
 
-function display_logs_header(o::Optimizer, pb::NSP.NonSmoothPb)
-    display_logs_header_pre(o::Optimizer)
-    print("it.   time      F(x)                     step       ")
-    display_logs_header_post(o::Optimizer)
+function display_logs_header(o::Optimizer, pb)
+    display_logs_header_pre(o)
+    display_logs_header_common(o)
+    display_logs_header_post(o)
     println()
     return
 end
 
 
-display_logs_post(os, optimizer) = nothing
+display_logs_pre(os, o) = nothing
+display_logs_common(os, o::To) where To <: NonSmoothOptimizer = @printf "%4i  %.1e  % .16e  % .3e  " os.it os.time os.Fx os.norm_step
+display_logs_post(os, o) = nothing
+
 function display_logs(os::OptimizationState, optimizer)
     print("\033[0m")
 
-    @printf "%4i  %.1e  % .16e  % .3e  " os.it os.time os.Fx os.norm_step
+    display_logs_pre(os, optimizer)
+    display_logs_common(os, optimizer)
     display_logs_post(os, optimizer)
 
     print("\033[0m")
@@ -117,20 +122,21 @@ function optimize!(
     ])
 
     if show_trace
-        @printf "%4i  %.1e  % .16e\n" iteration time_count F(pb, get_minimizer_candidate(state))
+        display_logs_common(tr[1], optimizer)
     end
 
     while !converged && !stopped && iteration < iterations_limit
         iteration += 1
 
         _time = time()
-        @timeit_debug "update_iterate!" optimstate_additionalinfo, iterationstatus = update_iterate!(state, optimizer, pb)
+        # @timeit_debug "update_iterate!" optimstate_additionalinfo, iterationstatus = update_iterate!(state, optimizer, pb)
+        optimstate_additionalinfo, iterationstatus = update_iterate!(state, optimizer, pb)
         time_count += time() - _time
 
-        @timeit_debug "build_optimstate" begin
+        # @timeit_debug "build_optimstate" begin
             optimizationstate = build_optimstate(state, optimizer, pb, iteration, time_count, x_prev, optimstate_additionalinfo; optimstate_extensions)
             push!(tr, optimizationstate)
-        end
+        # end
 
         ## Display logs and save iteration information
         if show_trace && (mod(iteration, ceil(iterations_limit / optparams.trace_length)) == 0 || iteration == iterations_limit)
@@ -154,15 +160,7 @@ function optimize!(
     x_final = get_minimizer_candidate(state)
 
     # Display status of optimizer:
-    println("
-* status:
-    initial point value:    $(F(pb, initial_x))
-    final point value:      $(F(pb, x_final))
-    stopped by it failure:  $(stopped_by_updatefailure)
-    stopped by time:        $(stopped_by_time_limit)
-* Counters:
-    Iterations:  $iteration
-    Time:        $time_count")
+    display_optimizerstatus(pb, optimizer, initial_x, x_final, stopped_by_updatefailure, stopped_by_time_limit, iteration, time_count)
 
 
     if getfield(NonSmoothSolvers, :timeit_debug_enabled)()
@@ -172,4 +170,18 @@ function optimize!(
     end
 
     return x_final, tr
+end
+
+function display_optimizerstatus(pb, ::To, initial_x, x_final, stopped_by_updatefailure, stopped_by_time_limit, iteration, time_count) where {Tf, To <: NonSmoothOptimizer{Tf}}
+    println("
+* status:
+    initial point value:    $(F(pb, initial_x))
+    final point value:      $(F(pb, x_final))
+    stopped by it failure:  $(stopped_by_updatefailure)
+    stopped by time:        $(stopped_by_time_limit)
+* Counters:
+    Iterations:  $iteration
+    Time:        $time_count"
+            )
+    return
 end

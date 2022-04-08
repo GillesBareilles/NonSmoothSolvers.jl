@@ -23,6 +23,10 @@ function linesearch_nsbfgs(pb, xₖ, ∇fₖ, d)
     Fₖ = F(pb, xₖ)
     F_cand = Inf
     x_cand = copy(xₖ)
+    v_cand = similar(xₖ)
+    isdiff_cand = true
+
+    linesearch_failed = false
 
     it_ls = 0
     ncalls_∂F_elt = 0
@@ -30,16 +34,19 @@ function linesearch_nsbfgs(pb, xₖ, ∇fₖ, d)
     while !validpoint
         x_cand .= xₖ .+ t .* d
         F_cand = F(pb, x_cand)
+        v_cand .= ∂F_elt(pb, x_cand)
+        isdiff_cand = is_differentiable(pb, x_cand)
 
         if Fₖ > F_cand > Fₖ - 3*eps(F_cand)
             @warn "Linesearch: reached conditionning of funtion here" it_ls
+            linesearch_failed = true
             break
         end
 
         Aₜ = (Fₖ + ω₁*t*dh₀ ≥ F_cand)
         Wₜ = false
-        if is_differentiable(pb, x_cand)
-            Wₜ = (dot(∂F_elt(pb, x_cand), d) > ω₂ * dh₀)
+        if isdiff_cand
+            Wₜ = (dot(v_cand, d) > ω₂ * dh₀)
             ncalls_∂F_elt += 1
         end
 
@@ -70,9 +77,9 @@ function linesearch_nsbfgs(pb, xₖ, ∇fₖ, d)
         @debug "Linesearch: too small step" F_x + ω₂*t*dh_0 F_cand
     end
 
-    return t, (;
+    return x_cand, v_cand, isdiff_cand, t, (;
                it_ls,
                F = 1+it_ls,
                ∂F_elt = ncalls_∂F_elt,
-               )
+               ), linesearch_failed
 end

@@ -14,6 +14,10 @@ using ConvexHullProjection
 using Infiltrator
 using DocStringExtensions
 
+using JuMP
+using OSQP
+using SparseArrays
+
 const NSS = NonSmoothSolvers
 
 import TimerOutputs: enable_debug_timings, disable_debug_timings
@@ -42,7 +46,6 @@ include("nonsmooth_optimizers/ns_BFGS.jl")
 
 export NSS
 
-export OptimizerParams
 export optimize!
 export OptimizerParams
 
