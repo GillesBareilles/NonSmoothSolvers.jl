@@ -46,7 +46,8 @@ function update_iterate!(state, bfgs::NSBFGS, pb)
     dₖ .= -1 .* state.Hₖ * state.∇f
 
     ## 2. Execute linesearch
-    xₖ₊₁, vₖ₊₁, isdiffₖ₊₁, tₖ, ls_ncalls, lsfailed = linesearch_nsbfgs(pb, state.x, state.∇f, dₖ)
+    xₖ₊₁, vₖ₊₁, isdiffₖ₊₁, tₖ, ls_ncalls, lsfailed =
+        linesearch_nsbfgs(pb, state.x, state.∇f, dₖ)
     lsfailed && (iteration_status = iteration_failed)
 
     x_next .= xₖ₊₁
@@ -76,9 +77,9 @@ function update_iterate!(state, bfgs::NSBFGS, pb)
         uₖ = state.Hₖ * yₖ
 
         c1 = (dot(yₖ, uₖ) + dot_yₖ_sₖ) / dot_yₖ_sₖ^2
-        c2 = 1/dot_yₖ_sₖ
+        c2 = 1 / dot_yₖ_sₖ
 
-        state.Hₖ .= state.Hₖ .+ c1 .* (sₖ*sₖ') .- c2 * (sₖ*uₖ' .+ uₖ*sₖ')
+        state.Hₖ .= state.Hₖ .+ c1 .* (sₖ * sₖ') .- c2 * (sₖ * uₖ' .+ uₖ * sₖ')
     else
         @warn "No update of BFGS inverse hessian approximation here" dot_yₖ_sₖ
     end
@@ -86,14 +87,16 @@ function update_iterate!(state, bfgs::NSBFGS, pb)
     state.x .= x_next
     state.∇f .= state.∇f_next
 
-    return (;dot_yₖ_sₖ,
-            ls_niter = ls_ncalls.it_ls,
-            ∇F_nextnorm=norm(state.∇f),
-            dnorm=norm(dₖ),
-            F = ls_ncalls.F,                # oracle_calls
-            ∂F_elt = 1 + ls_ncalls.∂F_elt,
-            is_differentiable = 1
-            ), iteration_status
+    return (;
+        dot_yₖ_sₖ,
+        ls_niter = ls_ncalls.it_ls,
+        ∇F_nextnorm = norm(state.∇f),
+        dnorm = norm(dₖ),
+        F = ls_ncalls.F,                # oracle_calls
+        ∂F_elt = 1 + ls_ncalls.∂F_elt,
+        is_differentiable = 1,
+    ),
+    iteration_status
 end
 
 

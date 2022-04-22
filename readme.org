@@ -1,14 +1,15 @@
 #+TITLE: NonSmoothSolvers.jl
 
-This package implements several algorithms for nonsmooth (nonconvex) optimization, including Gradient Sampling, nonsmooth BFGS and nonconvex proximal point. The implementations follow closely the related papers, tuning parameters is advisable to get the best of the methods. Comments and suggestions are more than welcome, get in touch with GitHub issues or by mail!
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://GillesBareilles.github.io/NonSmoothSolvers.jl/stable)
+[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://GillesBareilles.github.io/NonSmoothSolvers.jl/dev)
+[![Build Status](https://github.com/GillesBareilles/NonSmoothSolvers.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/GillesBareilles/NonSmoothSolvers.jl/actions/workflows/CI.yml?query=branch%3Amain)
+[![Coverage](https://codecov.io/gh/GillesBareilles/NonSmoothSolvers.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/GillesBareilles/NonSmoothSolvers.jl)
+[![Code Style: Blue](https://img.shields.io/badge/code%20style-blue-4495d1.svg)](https://github.com/invenia/BlueStyle)
 
-This is a work in progress. In particular, there may be bugs in algorithms, and the todo list is:
-- [ ] list features of ~optimize!~;
-- [X] ~GradientSampling~: solve subproblem with ~ConvexHullProjection~ (with warmstart?)
-- [ ] describe interactions with other packages (NonSmoothProblems, OptimPlots, ...);
-# - [ ] bring in nonconvex prox and proximal point;
-# - [ ] add acceleration methods of proximal point;
-- [ ] test optimization methods;
+
+This package implements several algorithms for nonsmooth (nonconvex) optimization, including Gradient Sampling, nonsmooth BFGS and nonconvex proximal point.
+The implementations follow closely the related papers, tuning parameters is advisable to get the best of the methods.
+Comments and suggestions are more than welcome, get in touch by opening an issue!
 
 *Setup* is as follows: in a julia REPL (default environment):
 #+begin_src julia
@@ -25,9 +26,12 @@ The generic solvers implemented are:
   #+begin_quote
 *Nonsmooth optimization via quasi-Newton methods*, Adrian S. Lewis, Michael L. Overton, 2012
   #+end_quote
+- Projection of a point on a polytope
+  #+begin_quote
+  *Finding the Nearest Point in A Polytope*, Philip Wolfe, Mathematical Programming, 1976
+  #+end_quote
 
 * Usage
-
 ** Defining a problem
 A general nonsmooth optimization problem may be implemented following [[https://github.com/GillesBareilles/NonSmoothProblems.jl][~NonSmoothProblems.jl~]]' interface:
 #+begin_src julia
@@ -38,7 +42,6 @@ struct Simplel1 <: NonSmoothProblems.NonSmoothPb end
 
 F(::Simplel1, x) = norm(x, 1)
 ∂F_elt(::Simplel1, x) = sign.(x)
-∂F_minnormelt(::Simplel1, x) = sign.(x)
 is_differentiable(::Simplel1, x) = length(filter(xᵢ -> xᵢ == 0, x)) > 0
 #+end_src
 
@@ -109,3 +112,13 @@ toto(1); @profilehtml toto(10000)
 Same method as above, with `o = GradientSampling(x)`.
 
 Most of the time is spent with the resolution of the QP.
+
+
+* Notes
+This is a work in progress. In particular, there may be bugs in algorithms, and the todo list is:
+- [ ] list features of ~optimize!~;
+# - [X] ~GradientSampling~: solve subproblem with ~ConvexHullProjection~ (with warmstart?)
+- [ ] describe interactions with other packages (NonSmoothProblems, OptimPlots, ...);
+# - [ ] bring in nonconvex prox and proximal point;
+# - [ ] add acceleration methods of proximal point;
+- [ ] test optimization methods;

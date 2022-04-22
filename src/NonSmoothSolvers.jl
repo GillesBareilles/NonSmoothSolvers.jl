@@ -29,7 +29,11 @@ export enable_debug_timings, disable_debug_timings
 #
 abstract type ConvergenceChecker end
 function has_converged(cvchecker::ConvergenceChecker, pb, optimizer, optimizationstate)
-    throw(error("has_converged: not defined for types &(typeof(cvchecker)), &(typeof(pb)), &(typeof(optimizer)), &(typeof(optimizationstate))."))
+    throw(
+        error(
+            "has_converged: not defined for types &(typeof(cvchecker)), &(typeof(pb)), &(typeof(optimizer)), &(typeof(optimizationstate)).",
+        ),
+    )
 end
 
 abstract type Optimizer{Tf} end
@@ -38,6 +42,11 @@ abstract type NonSmoothOptimizer{Tf} <: Optimizer{Tf} end
 
 include("solver_types.jl")
 include("optimize.jl")
+
+include("nonsmooth_optimizers/nearestpointpolytope_st.jl")
+export NearestPointPolytope, NearestPointPolytopeState
+export nearest_point_polytope
+# include("nonsmooth_optimizers/nearestpointpolytope.jl")
 
 include("nonsmooth_optimizers/subgradient.jl")
 include("nonsmooth_optimizers/gradientsampling.jl")
