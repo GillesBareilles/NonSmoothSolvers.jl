@@ -10,7 +10,6 @@ using PDMats
 using TimerOutputs
 using DataStructures
 
-using ConvexHullProjection
 using Infiltrator
 using DocStringExtensions
 

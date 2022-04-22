@@ -168,16 +168,16 @@ end
 get_minimizer_candidate(state::GradientSamplingState) = state.x
 
 
-function find_minimumnormelt_CHP(∂gᵢs::Matrix{Tf}) where {Tf}
-    set = CHP.SimplexShadow(∂gᵢs)
-    x0 = zeros(Tf, size(∂gᵢs, 2))
+# function find_minimumnormelt_CHP(∂gᵢs::Matrix{Tf}) where {Tf}
+#     set = CHP.SimplexShadow(∂gᵢs)
+#     x0 = zeros(Tf, size(∂gᵢs, 2))
 
-    showtermination = true
-    showtrace = true
-    showls = false
-    α, str = CHP.optimize(set, x0; showtermination, showtrace, showls, maxiter = 13)
-    return α
-end
+#     showtermination = true
+#     showtrace = true
+#     showls = false
+#     α, str = CHP.optimize(set, x0; showtermination, showtrace, showls, maxiter = 13)
+#     return α
+# end
 
 function samplegradients!(∂gᵢs, pb, x, ϵₖ)
     n = size(∂gᵢs, 1)
