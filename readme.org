@@ -6,7 +6,6 @@
 [![Coverage](https://codecov.io/gh/GillesBareilles/NonSmoothSolvers.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/GillesBareilles/NonSmoothSolvers.jl)
 [![Code Style: Blue](https://img.shields.io/badge/code%20style-blue-4495d1.svg)](https://github.com/invenia/BlueStyle)
 
-
 This package implements several algorithms for nonsmooth (nonconvex) optimization, including Gradient Sampling, nonsmooth BFGS and nonconvex proximal point.
 The implementations follow closely the related papers, tuning parameters is advisable to get the best of the methods.
 Comments and suggestions are more than welcome, get in touch by opening an issue!

@@ -52,6 +52,6 @@ jobs:
       - run: |
           julia --project=docs -e '
             using Documenter: DocMeta, doctest
-            using JuliaExampleRepo
-            DocMeta.setdocmeta!(JuliaExampleRepo, :DocTestSetup, :(using JuliaExampleRepo); recursive=true)
-            doctest(JuliaExampleRepo)'
+            using NonSmoothSolvers
+            DocMeta.setdocmeta!(NonSmoothSolvers, :DocTestSetup, :(using NonSmoothSolvers); recursive=true)
+            doctest(NonSmoothSolvers)'
