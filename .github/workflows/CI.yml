@@ -56,6 +56,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
       - run: |
+          julia --project=NonSmoothSolvers -e '
+          using Pkg
+          Pkg.Registry.add(RegistrySpec(url = "https://github.com/GillesBareilles/OptimRegistry.jl"))
+          Pkg.Registry.update()
+          '
+      - run: |
           julia --project=docs -e '
             using Documenter: DocMeta, doctest
             using NonSmoothSolvers
