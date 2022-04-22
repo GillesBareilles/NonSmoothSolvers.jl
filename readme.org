@@ -2,7 +2,7 @@
 
 [[https://GillesBareilles.github.io/NonSmoothSolvers.jl/stable][https://img.shields.io/badge/docs-stable-blue.svg]]
 [[https://GillesBareilles.github.io/NonSmoothSolvers.jl/dev][https://img.shields.io/badge/docs-dev-blue.svg]]
-[[https://github.com/GillesBareilles/NonSmoothSolvers.jl/actions/workflows/CI.yml?query=branch%3Amain][https://github.com/GillesBareilles/NonSmoothSolvers.jl/actions/workflows/CI.yml/badge.svg?branch=main]]
+[[https://github.com/GillesBareilles/NonSmoothSolvers.jl/actions/workflows/CI.yml?query=branch%3Amain][https://github.com/GillesBareilles/NonSmoothSolvers.jl/actions/workflows/CI.yml/badge.svg?branch=master]]
 [[https://codecov.io/gh/GillesBareilles/NonSmoothSolvers.jl][https://codecov.io/gh/GillesBareilles/NonSmoothSolvers.jl/branch/main/graph/badge.svg]]
 [[https://github.com/invenia/BlueStyle][https://img.shields.io/badge/code%20style-blue-4495d1.svg]]
 
