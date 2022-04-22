@@ -20,5 +20,5 @@ makedocs(;
 
 deploydocs(;
     repo="github.com/GillesBareilles/NonSmoothSolvers.jl",
-    devbranch="main",
+    devbranch="master",
 )
