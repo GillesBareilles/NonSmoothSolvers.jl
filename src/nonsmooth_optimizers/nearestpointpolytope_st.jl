@@ -1,9 +1,3 @@
-struct Polytope{Tm}
-    P::Tm
-end
-F(pb::Polytope, w) = norm(pb.P * w)
-
-
 Base.@kwdef struct NearestPointPolytope{Tf} <: Optimizer{Tf}
     Z₁::Tf = 1e-10
     Z₂::Tf = 1e-10
@@ -13,29 +7,27 @@ end
 Base.@kwdef mutable struct NearestPointPolytopeState{Tf} <: OptimizerState{Tf}
     w::Vector{Tf}
     x::Vector{Tf}
-    S::BitArray
+    S::Set{Int64} = Set{Int64}()
     it::Int64 = 1
     norm2Pᵢs::Vector{Tf}
 end
 
-function initial_state(::NearestPointPolytope, initial_w, pb)
-    norm2Pᵢs = [norm(pb.P[:, i])^2 for i in axes(pb.P, 2)]
-    j = argmin(norm2Pᵢs)
+function initial_state(P)
+    n, m = size(P)
+    return NearestPointPolytopeState(w = zeros(m), x = zeros(n), norm2Pᵢs = zeros(m))
+end
+function initialize_state!(state, P)
+    # for i in axes(P, 2)
+    #     state.norm2Pᵢs[i] = norm(P[:, i])^2
+    # end
 
-    m = size(pb.P, 2)
-    S = BitArray(zeros(m))
-    S[j] = 1
-
-    # Sa = BitVector(zeros(m))
-    # Sa[j] = 1
-    w = zeros(m)
-    w[j] = 1
-    return NearestPointPolytopeState(;
-        w,
-        x = pb.P * initial_w,
-        S,
-        norm2Pᵢs,
-    )
+    j = argmin(state.norm2Pᵢs)
+    state.w .= 0
+    state.w[j] = 1
+    state.x .= P * state.w
+    empty!(state.S)
+    push!(state.S, j)
+    return nothing
 end
 
 
@@ -43,80 +35,113 @@ end
 ### Printing
 #
 print_header(::NearestPointPolytope) = println("**** NearestPointPolytope algorithm")
-display_logs_header_common(::NearestPointPolytope) =
-    print("it.   time      F(x)                     step       ")
+display_logs_header(::NearestPointPolytope) =
+    print("it.   time      F(x)                     step       \n")
+function display_logs(state, ::NearestPointPolytope; time_count)
+    @printf "%4i  %.1e  %s\n" state.it time_count collect(state.S)
+end
 
-display_logs_common(os, ::NearestPointPolytope) =
-    @printf "%4i  %.1e  % .16e  % .3e  " os.it os.time os.Fx os.norm_step
+function nearest_point_polytope(P; show_trace = false)
+    state = initial_state(P)
+    initialize_state!(state, P)
+    o = NearestPointPolytope()
+    nearest_point_polytope!(state, o, P; show_trace)
+    return get_minimizer_candidate(state)
+end
 
-
-function build_initoptimstate(
+function nearest_point_polytope!(
     state,
-    optimizer::NearestPointPolytope{Tf},
-    pb;
-    optimstate_extensions,
-) where {Tf}
-    return OptimizationState(
-        it = 0,
-        time = 0.0,
-        Fx = F(pb, get_minimizer_candidate(state)),
-        norm_step = Tf(0.0),
-        ncalls_F = 0,
-        ncalls_∂F_elt = 0,
-        additionalinfo = NamedTuple(
-            indname => indcallback(optimizer, state) for
-            (indname, indcallback) in optimstate_extensions
-        ),
-    )
+    optimizer,
+    P;
+    show_trace = false,
+    iterations_limit = 10,
+)
+    time_count = 0.0
+    iteration = 0
+    converged = false
+    stopped = false
+
+    show_trace && print_header(optimizer)
+    show_trace && display_logs_header(optimizer)
+
+    while !converged && !stopped && iteration < iterations_limit
+        iteration += 1
+        _time = time()
+        iterationstatus = update_iterate!(state, optimizer, P)
+        time_count += time() - _time
+
+        show_trace && display_logs(state, optimizer; time_count)
+        stopped = (iterationstatus == iteration_failed)
+        converged = (iterationstatus == problem_solved)
+    end
 end
 
 #
 ### NearestPointPolytope method
 #
-function update_iterate!(state, npp::NearestPointPolytope{Tf}, pb) where Tf
-    state.x .= pb.P * state.w
+raw"""
+    $TYPEDSIGNATURES
+
+## TODOs
+- save `w` as a sparse vector?
+- better heuristic of selection for j
+- better LP solve strategy
+
+## Benchmark
+```
+julia> @benchmark NSS.nearest_point_polytope(P)
+BenchmarkTools.Trial: 10000 samples with 1 evaluation.
+ Range (min … max):  32.888 μs …  7.961 ms  ┊ GC (min … max): 0.00% … 99.20%
+ Time  (median):     37.116 μs              ┊ GC (median):    0.00%
+ Time  (mean ± σ):   41.617 μs ± 79.586 μs  ┊ GC (mean ± σ):  1.90% ±  0.99%
+
+     █▂
+  ▃▄▅██▅▅▃▃▂▂▂▂▃▃▃▄▄▄▄▄▄▄▄▄▃▃▃▃▃▃▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▁▂▂▂▂▂ ▃
+  32.9 μs         Histogram: frequency by time        68.4 μs <
+
+ Memory estimate: 23.05 KiB, allocs estimate: 125.
+```
+"""
+function update_iterate!(state, npp::NearestPointPolytope{Tf}, P) where {Tf}
+    state.x .= P * state.w
     x = state.x
     S = state.S
-    P = pb.P
     w = state.w
+    state.it += 1
 
+    # NOTE: this requires a full matrix vector product. That's a lot.
+    # There is probably better than this rule, see Wolfe, Note 1
+    state.norm2Pᵢs .= P' * x
+    j = argmin(state.norm2Pᵢs)
 
-    # j = argmin([dot(P[:, i], x) for i in axes(P, 2)])
-    j = argmin(P' * x)
-
+    # NOTE: We don't follow the theoretical stopping condition as it is too costly.
     if dot(x, P[:, j]) >
-        norm(x)^2 - npp.Z₁ * max(state.norm2Pᵢs[j], maximum(state.norm2Pᵢs[S]))
-
-        return NamedTuple(), problem_solved
+        norm(x)^2 - npp.Z₁ * max(norm(P[:, j]), maximum(norm(P[:, i]) for i in S))^2
+    # if dot(x, P[:, j]) > prevfloat(norm(x)^2)
+    # if state.norm2Pᵢs[j] > norm(x)^2 - 1e3 * eps(Tf)
+        # Optimality condition met, problem solved
+        return problem_solved
     end
     if j ∈ S
-        @info "disaster, stopping"
-        return NamedTuple(), iteration_failed
+        @info "disaster, stopping" state.norm2Pᵢs[j] norm(x)^2 dot(x, x)
+
+        # To quote Wolfe: "disaster happened", stopping
+        return iteration_failed
     end
 
-    # push!(S, j)
-    S[j] = 1
+    push!(S, j)
     w[j] = 0
 
-    removed_pts = SortedSet{Int64}()
     innerit = 0
     while true
         # Step 2
-        p = sum(S)
 
-        A = ones(p + 1, p + 1)
-        A[1, 1] = 0
-        Pₛ = @view P[:, S]
-        A[2:end, 2:end] .= Pₛ' * Pₛ
-        b = zeros(p + 1)
-        b[1] = 1
-        res = A \ b
-        v = res[2:end]
-
+        # NOTE: this is another clear place where we coudl do better.
+        v = solveLP(P, S)
 
         if sum(v .> npp.Z₂) == length(v)
-            w[S] .= v
-            @debug "Point in the ri of current convex hull"
+            # Point in the ri of current convex hull
+            w[collect(S)] .= v
             break
         end
 
@@ -130,12 +155,25 @@ function update_iterate!(state, npp::NearestPointPolytope{Tf}, pb) where Tf
         k::Int64 = findfirst(i -> (w[i] == 0), collect(S))
         k = collect(S)[k]
         delete!(S, k)
-        push!(removed_pts, k)
         innerit += 1
         innerit > 10 && @assert false
     end
 
-    return NamedTuple(), iteration_completed
+
+    return iteration_completed
+end
+
+function solveLP(P, S)
+    p = length(S)
+    A = ones(p + 1, p + 1)
+    A[1, 1] = 0
+    Pₛ = @view P[:, collect(S)]
+    A[2:end, 2:end] .= Pₛ' * Pₛ
+    b = zeros(p + 1)
+    b[1] = 1
+    res = A \ b
+    v = res[2:end]
+    return v
 end
 
 function display_optimizerstatus(
@@ -164,8 +202,14 @@ function display_optimizerstatus(
     println("S                    \t", collect(S))
     println("1 - eᵀw               \t", sum(w) - 1)
     println("|x - P*w|             \t", norm(x - pb.P * w))
-    println("Max{|xᵀPⱼ - xᵀx|, j∈S} \t", maximum([ abs(dot(x, pb.P[:, j]) - dot(x, x)) for j in S ]))
-    println("Min{xᵀPⱼ - xᵀx, j}     \t", minimum([ dot(x, pb.P[:, j]) - dot(x, x) for j in axes(pb.P, 2) ]))
+    println(
+        "Max{|xᵀPⱼ - xᵀx|, j∈S} \t",
+        maximum([abs(dot(x, pb.P[:, j]) - dot(x, x)) for j in S]),
+    )
+    println(
+        "Min{xᵀPⱼ - xᵀx, j}     \t",
+        minimum([dot(x, pb.P[:, j]) - dot(x, x) for j in axes(pb.P, 2)]),
+    )
     return
 end
 
