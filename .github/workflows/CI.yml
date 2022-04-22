@@ -50,17 +50,17 @@ jobs:
       - uses: julia-actions/setup-julia@v1
         with:
           version: '1'
+      - run: |
+          julia --color=yes -e '
+          using Pkg
+          Pkg.Registry.add(RegistrySpec(url = "https://github.com/GillesBareilles/OptimRegistry.jl"))
+          Pkg.Registry.update()
+          '
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-docdeploy@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
-      - run: |
-          julia --project=NonSmoothSolvers -e '
-          using Pkg
-          Pkg.Registry.add(RegistrySpec(url = "https://github.com/GillesBareilles/OptimRegistry.jl"))
-          Pkg.Registry.update()
-          '
       - run: |
           julia --project=docs -e '
             using Documenter: DocMeta, doctest
