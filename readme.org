@@ -12,7 +12,9 @@ Comments and suggestions are more than welcome, get in touch by opening an issue
 
 *Setup* is as follows: in a julia REPL (default environment):
 #+begin_src julia
-]add https://github.com/GillesBareilles/NonSmoothProblems.jl https://github.com/GillesBareilles/NonSmoothSolvers.jl
+]update
+]registry add https://github.com/GillesBareilles/OptimRegistry.jl
+]add NonSmoothSolvers
 #+end_src
 
 * Solvers

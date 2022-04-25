@@ -65,4 +65,3 @@ end
     # @test w_Wolfe ≈ w_OSQP
     @test norm(P * w_Wolfe) ≤ nextfloat(norm(P * w_OSQP))
 end
-

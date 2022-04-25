@@ -116,9 +116,9 @@ function update_iterate!(state, npp::NearestPointPolytope{Tf}, P) where {Tf}
 
     # NOTE: We don't follow the theoretical stopping condition as it is too costly.
     if dot(x, P[:, j]) >
-        norm(x)^2 - npp.Z₁ * max(norm(P[:, j]), maximum(norm(P[:, i]) for i in S))^2
-    # if dot(x, P[:, j]) > prevfloat(norm(x)^2)
-    # if state.norm2Pᵢs[j] > norm(x)^2 - 1e3 * eps(Tf)
+       norm(x)^2 - npp.Z₁ * max(norm(P[:, j]), maximum(norm(P[:, i]) for i in S))^2
+        # if dot(x, P[:, j]) > prevfloat(norm(x)^2)
+        # if state.norm2Pᵢs[j] > norm(x)^2 - 1e3 * eps(Tf)
         # Optimality condition met, problem solved
         return problem_solved
     end

@@ -106,8 +106,8 @@ function update_iterate!(
     end
 
     ## 4. Update parameters
-    ν_next = 0.
-    ϵ_next = 0.
+    ν_next = 0.0
+    ϵ_next = 0.0
     tₖ = 1.0
     it_ls = 0
     if gᵏ_norm ≤ state.νₖ
