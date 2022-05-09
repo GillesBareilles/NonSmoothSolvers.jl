@@ -1,193 +1,216 @@
-export test1, nearest_point_polytope
-export main
-
-function test1()
-    return [
-        1 1 2
-        1 2 1
-    ]
+Base.@kwdef struct NearestPointPolytope{Tf} <: Optimizer{Tf}
+    Z₁::Tf = 1e-10
+    Z₂::Tf = 1e-10
+    Z₃::Tf = 1e-10
 end
 
-function test2()
-    return Float64[
-        0 3 -2
-        2 0 1
-    ]
+Base.@kwdef mutable struct NearestPointPolytopeState{Tf} <: OptimizerState{Tf}
+    w::Vector{Tf}
+    x::Vector{Tf}
+    S::Set{Int64} = Set{Int64}()
+    it::Int64 = 1
+    norm2Pᵢs::Vector{Tf}
 end
 
-function test_large()
-    n = 40
+function initial_state(P::Matrix{Tf}) where Tf
+    n, m = size(P)
+    return NearestPointPolytopeState(w = zeros(Tf, m), x = zeros(Tf, n), norm2Pᵢs = zeros(Tf, m))
+end
+function initialize_state!(state, P)
+    # for i in axes(P, 2)
+    #     state.norm2Pᵢs[i] = norm(P[:, i])^2
+    # end
 
-    nbasevecs = 10
-    noccvecs = 6
-    basevecs = rand(n, nbasevecs)
-    P = zeros(n, nbasevecs * noccvecs)
-    for i = 1:nbasevecs
-        for j = 1+(i-1)*noccvecs:i*noccvecs
-            P[:, j] .= basevecs[:, i] + 1e-6 * randn(n)
-        end
+    j = argmin(state.norm2Pᵢs)
+    state.w .= 0
+    state.w[j] = 1
+    state.x .= P * state.w
+    empty!(state.S)
+    push!(state.S, j)
+    return nothing
+end
+
+
+#
+### Printing
+#
+print_header(::NearestPointPolytope) = println("**** NearestPointPolytope algorithm")
+display_logs_header(::NearestPointPolytope) =
+    print("it.   time      F(x)                     step       \n")
+function display_logs(state, ::NearestPointPolytope; time_count)
+    @printf "%4i  %.1e  %s\n" state.it time_count collect(state.S)
+end
+
+function nearest_point_polytope(P; show_trace = false)
+    state = initial_state(P)
+    initialize_state!(state, P)
+    o = NearestPointPolytope()
+    nearest_point_polytope!(state, o, P; show_trace)
+    return get_minimizer_candidate(state)
+end
+
+function nearest_point_polytope!(
+    state,
+    optimizer,
+    P;
+    show_trace = false,
+    iterations_limit = 10,
+)
+    time_count = 0.0
+    iteration = 0
+    converged = false
+    stopped = false
+
+    show_trace && print_header(optimizer)
+    show_trace && display_logs_header(optimizer)
+
+    while !converged && !stopped && iteration < iterations_limit
+        iteration += 1
+        _time = time()
+        iterationstatus = update_iterate!(state, optimizer, P)
+        time_count += time() - _time
+
+        show_trace && display_logs(state, optimizer; time_count)
+        stopped = (iterationstatus == iteration_failed)
+        converged = (iterationstatus == problem_solved)
     end
-    return P
 end
 
+#
+### NearestPointPolytope method
+#
 raw"""
     $TYPEDSIGNATURES
 
-Implement the algorithm from Wolfe's paper.
+## TODOs
+- save `w` as a sparse vector?
+- better heuristic of selection for j
+- better LP solve strategy
 
-## Note
-The convex combination of step 3c seems contradictory to note 6.
-We replaced $w = θw + (1-θ)v$ by $w = (1-θ)w + θv$.
+## Benchmark
+```
+julia> @benchmark NSS.nearest_point_polytope(P)
+BenchmarkTools.Trial: 10000 samples with 1 evaluation.
+ Range (min … max):  32.888 μs …  7.961 ms  ┊ GC (min … max): 0.00% … 99.20%
+ Time  (median):     37.116 μs              ┊ GC (median):    0.00%
+ Time  (mean ± σ):   41.617 μs ± 79.586 μs  ┊ GC (mean ± σ):  1.90% ±  0.99%
 
-## Reference
-- Wolfe (1976) Finding the Nearest Point in A Polytope, Mathematical Programming.
+     █▂
+  ▃▄▅██▅▅▃▃▂▂▂▂▃▃▃▄▄▄▄▄▄▄▄▄▃▃▃▃▃▃▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▁▂▂▂▂▂ ▃
+  32.9 μs         Histogram: frequency by time        68.4 μs <
+
+ Memory estimate: 23.05 KiB, allocs estimate: 125.
+```
 """
-function nearest_point_polytope(P)
-    n, m = size(P)
+function update_iterate!(state, npp::NearestPointPolytope{Tf}, P) where {Tf}
+    state.x .= P * state.w
+    x = state.x
+    S = state.S
+    w = state.w
+    state.it += 1
 
-    norm2Pᵢs = [norm(P[:, i])^2 for i in axes(P, 2)]
-    Z₁ = 1e-10
-    Z₂ = 1e-10
-    Z₃ = 1e-10
+    # NOTE: this requires a full matrix vector product. That's a lot.
+    # There is probably better than this rule, see Wolfe, Note 1
+    state.norm2Pᵢs .= P' * x
+    j = argmin(state.norm2Pᵢs)
 
-    # Step 0
-    j = argmin(norm2Pᵢs)
-    S = SortedSet{Int64}(j)
-    Sa = BitVector(zeros(m))
-    Sa[j] = 1
-    @show S
-    @show Sa
+    # NOTE: We don't follow the theoretical stopping condition as it is too costly.
+    if dot(x, P[:, j]) >
+       norm(x)^2 - npp.Z₁ * max(norm(P[:, j]), maximum(norm(P[:, i]) for i in S))^2
+        # if dot(x, P[:, j]) > prevfloat(norm(x)^2)
+        # if state.norm2Pᵢs[j] > norm(x)^2 - 1e3 * eps(Tf)
+        # Optimality condition met, problem solved
+        return problem_solved
+    end
+    if j ∈ S
+        @info "disaster, stopping" state.norm2Pᵢs[j] norm(x)^2 dot(x, x)
 
-    w = zeros(m)
-    w[j] = 1
-    x = P * w
-
-    showtrace = false
-
-    showtrace && println("it    j   S   removed elements")
-
-    converged = false
-    keepon = true
-    it = 1
-    while !converged && keepon
-        # Step 1
-        x = P * w
-        j = argmin([dot(P[:, i], x) for i in axes(P, 2)])
-
-
-        if dot(x, P[:, j]) >
-           norm(x)^2 - Z₁ * max(norm2Pᵢs[j], maximum(norm2Pᵢs[collect(S)]))
-
-            converged = true
-            break
-        end
-        if j ∈ S
-            keepon = false
-            @info "disaster, stopping"
-        end
-
-        push!(S, j)
-        @show S
-        Sa[j] = 1
-        @show Sa
-
-        w[j] = 0
-
-        removed_pts = SortedSet{Int64}()
-        innerit = 0
-        while true
-            # Step 2
-            p = length(S)
-            A = ones(p + 1, p + 1)
-            A[1, 1] = 0
-            Pₛ = @view P[:, collect(S)]
-            A[2:end, 2:end] .= Pₛ' * Pₛ
-            b = zeros(p + 1)
-            b[1] = 1
-            res = A \ b
-            v = res[2:end]
-
-
-            if sum(v .> Z₂) == length(v)
-                w[collect(S)] .= v
-                @debug "Point in the ri of current convex hull"
-                break
-            end
-
-            # Step 3
-            wₛ = @view w[collect(S)]
-            POS = filter(i -> wₛ[i] > v[i] + Z₃, 1:length(S))
-            θ = min(1, minimum(i -> wₛ[i] / (wₛ[i] - v[i]), POS))
-            @. wₛ = (1 - θ) * wₛ + θ * v
-
-            w[w.<Z₂] .= 0
-            k::Int64 = findfirst(i -> (w[i] == 0), collect(S))
-            k = collect(S)[k]
-            delete!(S, k)
-            push!(removed_pts, k)
-
-            @show S
-            Sa[k] = 0
-            @show Sa
-
-
-            innerit += 1
-            innerit > 10 && @assert false
-        end
-
-        showtrace && @printf "%2i  %i   %s    %s  " it j collect(S) collect(removed_pts)
-
-        it += 1
-        # it > 500 && (keepon = false)
+        # To quote Wolfe: "disaster happened", stopping
+        return iteration_failed
     end
 
-    showtrace && show_final_status(S, w, P, x)
+    push!(S, j)
+    w[j] = 0
 
-    return w, x
+    innerit = 0
+    while true
+        # Step 2
+
+        # NOTE: this is another clear place where we coudl do better.
+        v = solveLP(P, S)
+
+        if sum(v .> npp.Z₂) == length(v)
+            # Point in the ri of current convex hull
+            w[collect(S)] .= v
+            break
+        end
+
+        # Step 3
+        wₛ = @view w[collect(S)]
+        POS = filter(i -> wₛ[i] > v[i] + npp.Z₃, 1:length(S))
+        θ = min(1, minimum(i -> wₛ[i] / (wₛ[i] - v[i]), POS))
+        @. wₛ = (1 - θ) * wₛ + θ * v
+
+        w[w.<npp.Z₂] .= 0
+        k::Int64 = findfirst(i -> (w[i] == 0), collect(S))
+        k = collect(S)[k]
+        delete!(S, k)
+        innerit += 1
+        innerit > 10 && @assert false
+    end
+
+
+    return iteration_completed
 end
 
-function show_final_status(S, w, P, x)
-    println()
+function solveLP(P::Tp, S) where {Tf, Tp <: AbstractMatrix{Tf}}
+    p = length(S)
+    A = ones(Tf, p + 1, p + 1)
+    A[1, 1] = 0
+    Pₛ = @view P[:, collect(S)]
+    A[2:end, 2:end] .= Pₛ' * Pₛ
+    b = zeros(Tf, p + 1)
+    b[1] = 1
+    res = A \ b
+    v = res[2:end]
+    return v
+end
+
+function display_optimizerstatus(
+    pb,
+    ::NearestPointPolytope,
+    state,
+    initial_x,
+    stopped_by_updatefailure,
+    stopped_by_time_limit,
+    iteration,
+    time_count,
+)
+    x_final = get_minimizer_candidate(state)
+    println("
+* status:
+    final point value:      $(F(pb, x_final))
+    stopped by it failure:  $(stopped_by_updatefailure)
+    stopped by time:        $(stopped_by_time_limit)
+* Counters:
+    Iterations:  $iteration
+    Time:        $time_count")
+
+    S = state.S
+    w = state.w
+    x = state.x
     println("S                    \t", collect(S))
     println("1 - eᵀw               \t", sum(w) - 1)
-    println("|x - P*w|             \t", norm(x - P * w))
+    println("|x - P*w|             \t", norm(x - pb.P * w))
     println(
         "Max{|xᵀPⱼ - xᵀx|, j∈S} \t",
-        maximum([abs(dot(x, P[:, j]) - dot(x, x)) for j in S]),
+        maximum([abs(dot(x, pb.P[:, j]) - dot(x, x)) for j in S]),
     )
     println(
         "Min{xᵀPⱼ - xᵀx, j}     \t",
-        minimum([dot(x, P[:, j]) - dot(x, x) for j in axes(P, 2)]),
+        minimum([dot(x, pb.P[:, j]) - dot(x, x) for j in axes(pb.P, 2)]),
     )
     return
 end
 
-function find_minimumnormelt_OSQP(∂gᵢs)
-    n, nsamples = size(∂gᵢs)
-
-    P = sparse(∂gᵢs' * ∂gᵢs)
-    q = zeros(nsamples)
-    A = sparse(vcat(Diagonal(1.0I, nsamples), ones(nsamples)'))
-    l = zeros(nsamples + 1)
-    l[end] = 1
-    u = Inf * ones(nsamples + 1)
-    u[end] = 1
-
-    # Solve problem
-    options = Dict(
-        :verbose => false,
-        :polish => true,
-        :eps_abs => 1e-06,
-        :eps_rel => 1e-06,
-        :max_iter => 5000,
-    )
-    model = OSQP.Model()
-    OSQP.setup!(model; P = P, q = q, A = A, l = l, u = u, options...)
-    results = OSQP.solve!(model)
-    return results.x
-end
-
-function main()
-    P = test2()
-    nearest_point_polytope(P)
-end
+get_minimizer_candidate(state::NearestPointPolytopeState) = state.w

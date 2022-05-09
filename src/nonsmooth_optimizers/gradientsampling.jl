@@ -12,10 +12,34 @@ Base.@kwdef struct GradientSampling{Tf} <: NonSmoothOptimizer{Tf}
     θ_ϵ::Tf = 0.1
     θ_ν::Tf = 0.1
     ls_maxit::Int64 = 70
-    nppopt::NearestPointPolytope{Tf} = NearestPointPolytope()
+    nppopt::NearestPointPolytope{Tf}
+    # β::Tf
+    # γ::Tf
+    # ϵ_opt::Tf
+    # ν_opt::Tf
+    # θ_ϵ::Tf
+    # θ_ν::Tf
+    # ls_maxit::Int64
+    # nppopt::NearestPointPolytope{Tf}
 end
+# function GradientSampling(; m, Tf)
+#     return GradientSampling{Tf}(
+#         m,
+#         1e-4,
+#         0.5,
+#         1e-6,
+#         1e-6,
+#         0.1,
+#         0.1,
+#         70,
+#         NearestPointPolytope{Tf}(),
+#     )
+# end
 
-GradientSampling(initial_x::AbstractVector) = GradientSampling(m = length(initial_x) * 2)
+GradientSampling(initial_x::AbstractVector{Tf}) where Tf = GradientSampling{Tf}(
+    m = length(initial_x) * 2,
+    nppopt = NearestPointPolytope{Tf}(),
+)
 
 Base.@kwdef mutable struct GradientSamplingState{Tf} <: OptimizerState{Tf}
     x::Vector{Tf}
@@ -31,9 +55,9 @@ function initial_state(gs::GradientSampling{Tf}, initial_x::Vector{Tf}, pb) wher
     return GradientSamplingState(;
         x = initial_x,
         ∂gᵢs,
-        nppstate = initial_state(∂gᵢs),
         ϵₖ = Tf(0.1),
         νₖ = Tf(0.1),
+        nppstate = initial_state(∂gᵢs),
     )
 end
 

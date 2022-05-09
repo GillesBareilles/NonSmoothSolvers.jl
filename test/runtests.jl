@@ -1,89 +1,38 @@
 using Test
 using Random
 using NonSmoothSolvers
+using NonSmoothProblems
 using LinearAlgebra
 using SparseArrays
 using JuMP, OSQP
 
-function find_minimumnormelt_OSQP(∂gᵢs)
-    n, nsamples = size(∂gᵢs)
+include("nearestpointpolytope.jl")
 
-    P = sparse(∂gᵢs' * ∂gᵢs)
-    q = zeros(nsamples)
-    A = sparse(vcat(Diagonal(1.0I, nsamples), ones(nsamples)'))
-    l = zeros(nsamples + 1)
-    l[end] = 1
-    u = Inf * ones(nsamples + 1)
-    u[end] = 1
-
-    # Solve problem
-    options = Dict(
-        :verbose => false,
-        :polish => true,
-        :eps_abs => 1e-06,
-        :eps_rel => 1e-06,
-        :max_iter => 5000,
+function getpb(Tf)
+    ε = 0.2
+    return MaxQuadPb{Tf}(2, 2,
+        Vector{Matrix{Tf}}([Diagonal([1, 0]), Diagonal([2, 1])]),
+        Vector{Vector{Tf}}([[1 - ε, 0], [-ε, 0]]),
+        Vector{Tf}([0, 0])
     )
-    model = OSQP.Model()
-    OSQP.setup!(model; P = P, q = q, A = A, l = l, u = u, options...)
-    results = OSQP.solve!(model)
-    return results.x
 end
 
+@testset "Simple max of quad example" begin
+    optparams = OptimizerParams(; iterations_limit = 60, trace_length = 5, time_limit = 1.0)
+    @testset "Tf = $Tf" for Tf in [Float64, BigFloat]
+        pb = getpb(Tf)
+        xinit = Tf[1, 1]
 
+        @testset "Optimizer $(typeof(o))" for (o, xtol) in [
+            (GradientSampling(xinit), 1e-6),
+            (NSBFGS{Tf}(), 1e-8),
+            (Subgradient{Tf}(), 1e-2),
+        ]
 
-@testset "Nearest point of polytope - Float64" begin
-    P = Float64[
-        0 3 -2
-        2 0 1
-    ]
-
-    w_Wolfe = nearest_point_polytope(P)
-    w_OSQP = find_minimumnormelt_OSQP(P)
-    @test w_Wolfe ≈ w_OSQP
-    @test norm(P * w_Wolfe) ≤ nextfloat(norm(P * w_OSQP))
-
-
-    P = rand(10, 20)
-    w_Wolfe = nearest_point_polytope(P)
-    w_OSQP = find_minimumnormelt_OSQP(P)
-    @test w_Wolfe ≈ w_OSQP
-    @test norm(P * w_Wolfe) ≤ nextfloat(norm(P * w_OSQP))
-
-    # A case close to gradient sampling:
-    n = 20
-    basevecs = rand(n, 4)
-    P = zeros(n, 4 * 6)
-    for i = 1:4
-        for j = 1+(i-1)*6:i*6
-            P[:, j] .= basevecs[:, i] + 1e-6 * randn(n)
+            xfinal_gs, tr = NSS.optimize!(pb, o, xinit; optparams)
+            @test isa(xfinal_gs, Vector{Tf})
+            @test xfinal_gs ≈ Tf[0, 0] atol = xtol
+            @test xinit == Tf[1, 1]
         end
     end
-
-    w_Wolfe, x = nearest_point_polytope(P)
-    w_OSQP = find_minimumnormelt_OSQP(P)
-    # @test w_Wolfe ≈ w_OSQP
-    @test norm(P * w_Wolfe) ≤ nextfloat(norm(P * w_OSQP))
-end
-
-@testset "Nearest point of polytope - BigFloat" begin
-    P = BigFloat[
-        0 3 -2
-        2 0 1
-    ]
-
-    w_Wolfe = nearest_point_polytope(P)
-    @test isa(w_Wolfe, Vector{BigFloat})
-    @test w_Wolfe ≈ BigFloat[0.0, 11//26, 15//26]
-end
-
-@testset "Nearest point of polytope - Rational" begin
-    P = Rational[
-        0 3 -2
-        2 0 1
-    ]
-
-    w_Wolfe = nearest_point_polytope(P)
-    @test isa(w_Wolfe, Vector{Rational})
-    @test w_Wolfe == [0//1, 11//26, 15//26]
 end

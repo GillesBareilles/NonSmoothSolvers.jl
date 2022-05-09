@@ -42,10 +42,9 @@ abstract type NonSmoothOptimizer{Tf} <: Optimizer{Tf} end
 include("solver_types.jl")
 include("optimize.jl")
 
-include("nonsmooth_optimizers/nearestpointpolytope_st.jl")
+include("nonsmooth_optimizers/nearestpointpolytope.jl")
 export NearestPointPolytope, NearestPointPolytopeState
 export nearest_point_polytope
-# include("nonsmooth_optimizers/nearestpointpolytope.jl")
 
 include("nonsmooth_optimizers/subgradient.jl")
 include("nonsmooth_optimizers/gradientsampling.jl")
