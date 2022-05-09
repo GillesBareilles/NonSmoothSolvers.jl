@@ -32,7 +32,7 @@ end
 
 
 
-@testset "Nearest point of polytope" begin
+@testset "Nearest point of polytope - Float64" begin
     P = Float64[
         0 3 -2
         2 0 1
@@ -64,4 +64,26 @@ end
     w_OSQP = find_minimumnormelt_OSQP(P)
     # @test w_Wolfe ≈ w_OSQP
     @test norm(P * w_Wolfe) ≤ nextfloat(norm(P * w_OSQP))
+end
+
+@testset "Nearest point of polytope - BigFloat" begin
+    P = BigFloat[
+        0 3 -2
+        2 0 1
+    ]
+
+    w_Wolfe = nearest_point_polytope(P)
+    @test isa(w_Wolfe, Vector{BigFloat})
+    @test w_Wolfe ≈ BigFloat[0.0, 11//26, 15//26]
+end
+
+@testset "Nearest point of polytope - Rational" begin
+    P = Rational[
+        0 3 -2
+        2 0 1
+    ]
+
+    w_Wolfe = nearest_point_polytope(P)
+    @test isa(w_Wolfe, Vector{Rational})
+    @test w_Wolfe == [0//1, 11//26, 15//26]
 end

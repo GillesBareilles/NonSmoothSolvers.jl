@@ -12,9 +12,9 @@ Base.@kwdef mutable struct NearestPointPolytopeState{Tf} <: OptimizerState{Tf}
     norm2Pᵢs::Vector{Tf}
 end
 
-function initial_state(P)
+function initial_state(P::Matrix{Tf}) where Tf
     n, m = size(P)
-    return NearestPointPolytopeState(w = zeros(m), x = zeros(n), norm2Pᵢs = zeros(m))
+    return NearestPointPolytopeState(w = zeros(Tf, m), x = zeros(Tf, n), norm2Pᵢs = zeros(Tf, m))
 end
 function initialize_state!(state, P)
     # for i in axes(P, 2)
@@ -163,13 +163,13 @@ function update_iterate!(state, npp::NearestPointPolytope{Tf}, P) where {Tf}
     return iteration_completed
 end
 
-function solveLP(P, S)
+function solveLP(P::Tp, S) where {Tf, Tp <: AbstractMatrix{Tf}}
     p = length(S)
-    A = ones(p + 1, p + 1)
+    A = ones(Tf, p + 1, p + 1)
     A[1, 1] = 0
     Pₛ = @view P[:, collect(S)]
     A[2:end, 2:end] .= Pₛ' * Pₛ
-    b = zeros(p + 1)
+    b = zeros(Tf, p + 1)
     b[1] = 1
     res = A \ b
     v = res[2:end]
@@ -185,7 +185,7 @@ function display_optimizerstatus(
     stopped_by_time_limit,
     iteration,
     time_count,
-) where {Tf}
+)
     x_final = get_minimizer_candidate(state)
     println("
 * status:
