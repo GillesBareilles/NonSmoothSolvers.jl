@@ -5,6 +5,7 @@ end
 
 Base.@kwdef mutable struct NSBFGSState{Tf} <: OptimizerState{Tf}
     x::Vector{Tf}
+    fx::Tf
     ∇f::Vector{Tf}
     ∇f_next::Vector{Tf}
     Hₖ::Matrix{Tf}
@@ -14,6 +15,7 @@ function initial_state(::NSBFGS, initial_x::Vector{Tf}, pb) where {Tf}
     n = length(initial_x)
     return NSBFGSState(
         x = initial_x,
+        fx = F(pb, initial_x),
         ∇f = ∂F_elt(pb, initial_x),
         ∇f_next = zeros(Tf, n),
         Hₖ = Matrix{Tf}(I, n, n),
@@ -40,17 +42,15 @@ function update_iterate!(state, bfgs::NSBFGS, pb)
     iteration_status = iteration_completed
 
     dₖ = similar(state.∇f)
-    x_next = similar(state.x)
 
     ## 1. Compute descent direction
     dₖ .= -1 .* state.Hₖ * state.∇f
 
     ## 2. Execute linesearch
-    xₖ₊₁, vₖ₊₁, isdiffₖ₊₁, tₖ, ls_ncalls, lsfailed =
-        linesearch_nsbfgs(pb, state.x, state.∇f, dₖ)
+    xₖ₊₁, fₖ₊₁, vₖ₊₁, isdiffₖ₊₁, tₖ, ls_ncalls, lsfailed =
+        linesearch_nsbfgs(pb, state.x, state.fx, state.∇f, dₖ)
     lsfailed && (iteration_status = iteration_failed)
 
-    x_next .= xₖ₊₁
     state.∇f_next .= vₖ₊₁
 
     ## 3. Check differentiability at new point
@@ -84,8 +84,9 @@ function update_iterate!(state, bfgs::NSBFGS, pb)
         @warn "No update of BFGS inverse hessian approximation here" dot_yₖ_sₖ
     end
 
-    state.x .= x_next
+    state.x .= xₖ₊₁
     state.∇f .= state.∇f_next
+    state.fx = fₖ₊₁
 
     return (;
         dot_yₖ_sₖ,

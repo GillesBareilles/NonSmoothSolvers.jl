@@ -4,7 +4,7 @@
 
 Nonsmooth linesearch from *Nonsmooth optimization via quasi-Newton methods*, Lewis & Overton, 2013.
 """
-function linesearch_nsbfgs(pb, xₖ, ∇fₖ, d)
+function linesearch_nsbfgs(pb, xₖ, Fₖ, ∇fₖ, d)
     ω₁ = 1e-4
     ω₂ = 0.5
     maxit = 50
@@ -25,7 +25,6 @@ function linesearch_nsbfgs(pb, xₖ, ∇fₖ, d)
     α, β = 0.0, Inf
     A_t, W_t = false, false
 
-    Fₖ = F(pb, xₖ)
     F_cand = Inf
     x_cand = copy(xₖ)
     v_cand = similar(xₖ)
@@ -38,9 +37,8 @@ function linesearch_nsbfgs(pb, xₖ, ∇fₖ, d)
     validpoint = false
     while !validpoint
         x_cand .= xₖ .+ t .* d
-        F_cand = F(pb, x_cand)
-        v_cand .= ∂F_elt(pb, x_cand)
-        isdiff_cand = is_differentiable(pb, x_cand)
+        F_cand, v_cand, isdiff_cand = firstorderoracle(pb, x_cand)
+        ncalls_∂F_elt += 1
 
         if Fₖ > F_cand > Fₖ - 3 * eps(F_cand)
             @warn "Linesearch: reached conditionning of funtion here" it_ls
@@ -52,7 +50,6 @@ function linesearch_nsbfgs(pb, xₖ, ∇fₖ, d)
         Wₜ = false
         if isdiff_cand
             Wₜ = (dot(v_cand, d) > ω₂ * dh₀)
-            ncalls_∂F_elt += 1
         end
 
 
@@ -83,6 +80,7 @@ function linesearch_nsbfgs(pb, xₖ, ∇fₖ, d)
     end
 
     return x_cand,
+    F_cand,
     v_cand,
     isdiff_cand,
     t,
