@@ -1,31 +1,63 @@
+"""
+    $TYPEDSIGNATURES
 
-Base.@kwdef struct GradientSampling <: NonSmoothOptimizer
+Gradient sampling algorthm.
+"""
+Base.@kwdef struct GradientSampling{Tf} <: NonSmoothOptimizer{Tf}
     m::Int64
-    β::Float64 = 1e-4
-    γ::Float64 = 0.5
-    ϵ_opt::Float64 = 1e-3
-    ν_opt::Float64 = 1e-5
-    θ_ϵ::Float64 = 0.1
-    θ_ν::Float64 = 0.1
+    β::Tf = 1e-4
+    γ::Tf = 0.5
+    ϵ_opt::Tf = 1e-6
+    ν_opt::Tf = 1e-6
+    θ_ϵ::Tf = 0.1
+    θ_ν::Tf = 0.1
     ls_maxit::Int64 = 70
+    nppopt::NearestPointPolytope{Tf}
+    # β::Tf
+    # γ::Tf
+    # ϵ_opt::Tf
+    # ν_opt::Tf
+    # θ_ϵ::Tf
+    # θ_ν::Tf
+    # ls_maxit::Int64
+    # nppopt::NearestPointPolytope{Tf}
 end
+# function GradientSampling(; m, Tf)
+#     return GradientSampling{Tf}(
+#         m,
+#         1e-4,
+#         0.5,
+#         1e-6,
+#         1e-6,
+#         0.1,
+#         0.1,
+#         70,
+#         NearestPointPolytope{Tf}(),
+#     )
+# end
 
-GradientSampling(initial_x::AbstractVector) = GradientSampling(m=length(initial_x)+1)
+GradientSampling(initial_x::AbstractVector{Tf}) where Tf = GradientSampling{Tf}(
+    m = length(initial_x) * 2,
+    nppopt = NearestPointPolytope{Tf}(),
+)
 
-Base.@kwdef mutable struct GradientSamplingState{Tf}
+Base.@kwdef mutable struct GradientSamplingState{Tf} <: OptimizerState{Tf}
     x::Vector{Tf}
     ∂gᵢs::Matrix{Tf}
     ϵₖ::Tf
     νₖ::Tf
+    nppstate::NearestPointPolytopeState{Tf}
     k::Int64 = 1
 end
 
-function initial_state(gs::GradientSampling, initial_x::Vector{Tf}, pb) where {Tf}
-    return GradientSamplingState(
+function initial_state(gs::GradientSampling{Tf}, initial_x::Vector{Tf}, pb) where {Tf}
+    ∂gᵢs = zeros(Tf, length(initial_x), gs.m + 1)
+    return GradientSamplingState(;
         x = initial_x,
-        ∂gᵢs = zeros(Tf, length(initial_x), gs.m+1),
+        ∂gᵢs,
         ϵₖ = Tf(0.1),
         νₖ = Tf(0.1),
+        nppstate = initial_state(∂gᵢs),
     )
 end
 
@@ -35,7 +67,8 @@ end
 #
 print_header(gs::GradientSampling) = println("**** GradientSampling algorithm\nm = $(gs.m)")
 
-display_logs_header_post(gs::GradientSampling) = print("||gᵏ||     ϵₖ       νₖ        it_ls")
+display_logs_header_post(gs::GradientSampling) =
+    print("||gᵏ||     ϵₖ       νₖ        it_ls")
 function display_logs_post(os, gs::GradientSampling)
     @printf "%.3e  %.1e  %.1e  %2i" os.additionalinfo.gᵏ_norm os.additionalinfo.ϵₖ os.additionalinfo.νₖ os.additionalinfo.it_ls
 end
@@ -48,107 +81,139 @@ end
     update_iterate!(state, gs::GradientSampling, pb)
 
 NOTE: each iteration is costly. This can be explored with NonSmoothProblems.to.
-───────────────────────────────────────────────────────────────────────────────────────────
-Time                   Allocations
-──────────────────────   ───────────────────────
-Tot / % measured:                  45.5s / 2.89%           1.63GiB / 14.5%
+On the maxquadBGLS problem
+ ────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                            Time                    Allocations
+                                                   ───────────────────────   ────────────────────────
+                 Tot / % measured:                      103ms /  93.9%           9.50MiB /  96.1%
 
-Section                            ncalls     time   %tot     avg     alloc   %tot      avg
-───────────────────────────────────────────────────────────────────────────────────────────
-GS 2. minimum norm (sub)gradient       20    1.30s  98.6%  64.9ms    240MiB  99.0%  12.0MiB
-GS 4. Update parameters                20   12.8ms  0.97%   641μs   1.63MiB  0.67%  83.6KiB
-GS 5. diff check                       20   3.04ms  0.23%   152μs    428KiB  0.17%  21.4KiB
-GS 1. point sampling                   20   2.49ms  0.19%   124μs    497KiB  0.20%  24.9KiB
-GS 3. Termination                      20   33.8μs  0.00%  1.69μs      320B  0.00%    16.0B
-───────────────────────────────────────────────────────────────────────────────────────────
+ Section                                   ncalls     time    %tot     avg     alloc    %tot      avg
+ ────────────────────────────────────────────────────────────────────────────────────────────────────
+ update_iterate!                              100   95.6ms   98.7%   956μs   8.92MiB   97.8%  91.4KiB
+   GS 2. minimum norm (sub)gradient           100   83.3ms   86.0%   833μs   3.56MiB   39.0%  36.4KiB
+   GS 1. sampling points, eval gradients      100   7.39ms    7.6%  73.9μs   3.85MiB   42.2%  39.4KiB
+   GS 4. Update parameters                    100   4.24ms    4.4%  42.4μs   1.40MiB   15.3%  14.3KiB
+   GS 5. diff check                           100    288μs    0.3%  2.88μs    117KiB    1.3%  1.17KiB
+   GS 3. Termination                          100   41.1μs    0.0%   411ns     0.00B    0.0%    0.00B
+ build_optimstate                             100   1.19ms    1.2%  11.9μs    207KiB    2.2%  2.07KiB
+ CV check                                     100   47.0μs    0.0%   470ns     0.00B    0.0%    0.00B
+ ────────────────────────────────────────────────────────────────────────────────────────────────────
 """
-function update_iterate!(state::GradientSamplingState{Tf}, gs::GradientSampling, pb) where Tf
+function update_iterate!(
+    state::GradientSamplingState{Tf},
+    gs::GradientSampling,
+    pb,
+) where {Tf}
     iteration_status = iteration_completed
-    n = length(state.x)
     ∂gᵢs = state.∂gᵢs
 
-    @timeit_debug "GS 1. sampling points, eval gradients" begin
     ## 1. Sample m points in 𝔹(x, ϵₖ)
-    Random.seed!(123 + state.k)
-    for i in 1:gs.m
-        ∂gᵢ = @view ∂gᵢs[:, i]
-        ∂gᵢ .= rand(Normal(), n)
-        ∂gᵢ .*= state.ϵₖ * rand()^(1/n) / norm(∂gᵢ)
-        ∂gᵢ .+= state.x
-        ∂gᵢ .= ∂F_elt(pb, ∂gᵢ)
-    end
-    ∂gᵢs[:, gs.m+1] .= ∂F_elt(pb, state.x)
-    end
+    samplegradients!(∂gᵢs, pb, state.x, state.ϵₖ)
 
     ## 2. Find minimal norm element of convex hull at gradients of previous points.
-    @timeit_debug "GS 2. minimum norm (sub)gradient" begin
-    set = CHP.SimplexShadow(∂gᵢs)
-    x0 = zeros(Tf, gs.m+1)
+    # alphaOSQP = find_minimumnormelt_OSQP(∂gᵢs)
+    # gᵏ = ∂gᵢs * alphaOSQP
+    # alphaWolfe = nearest_point_polytope(∂gᵢs)
+    # gᵏ = ∂gᵢs * alphaWolfe
 
-    α, str = CHP.optimize(set, x0)
+    initialize_state!(state.nppstate, ∂gᵢs)
+    nearest_point_polytope!(state.nppstate, gs.nppopt, ∂gᵢs; show_trace = false)
+    gᵏ = state.nppstate.x
 
-    gᵏ = ∂gᵢs * α
     gᵏ_norm = norm(gᵏ)
-    end
 
 
     ## 3. termination
-    @timeit_debug "GS 3. Termination" begin
     if gᵏ_norm ≤ gs.ν_opt && state.ϵₖ ≤ gs.ϵ_opt
         iteration_status = problem_solved
-    end
+        @info "termination condition satisfied"
     end
 
     ## 4. Update parameters
-    @timeit_debug "GS 4. Update parameters" begin
-    ν_next = state.νₖ
-    ϵ_next = state.ϵₖ
+    ν_next = 0.0
+    ϵ_next = 0.0
     tₖ = 1.0
     it_ls = 0
     if gᵏ_norm ≤ state.νₖ
         ν_next = gs.θ_ν * state.νₖ
         ϵ_next = gs.θ_ϵ * state.ϵₖ
         tₖ = 0.0
+        @info "reducing sampling size"
     else
+        # This test is not costly, and may help detect difficult cases
+        gtd = dot(gᵏ, ∂F_elt(pb, state.x))
+        if gtd <= 0
+            @warn "not descent direction, gtd = $gtd"
+        end
+
         ν_next = state.νₖ
         ϵ_next = state.ϵₖ
-        tₖ = 1.0
 
         fₖ = F(pb, state.x)
-        while !(F(pb, state.x - tₖ * gᵏ) < fₖ - gs.β * tₖ * gᵏ_norm^2) && (it_ls < gs.ls_maxit)
+        while !(F(pb, state.x - tₖ * gᵏ) < fₖ - gs.β * tₖ * gᵏ_norm^2)
             tₖ *= gs.γ
             it_ls += 1
-        end
 
-        if it_ls == gs.ls_maxit
-            @warn("GradientSampling(): linesearch exceeded $(gs.ls_maxit) iterations, no suitable steplength found.")
+            if it_ls > gs.ls_maxit
+                @warn "GradientSampling(): linesearch exceeded $(gs.ls_maxit) iterations, no suitable steplength found."
+                break
+            end
+            if (norm(gᵏ) * tₖ < 10 * eps(Tf))
+                @warn("Linesearch reached numerical precision")
+                break
+            end
         end
     end
-    end
 
-    @timeit_debug "GS 5. diff check" begin
     x_next = state.x - tₖ * gᵏ
     if !is_differentiable(pb, x_next)
-        @warn("Gradient sampling: F not differentiable at next point, portion to be implemented.")
+        @error(
+            "Gradient sampling: F not differentiable at next point, portion to be implemented."
+        )
     end
 
     state.ϵₖ = ϵ_next
     state.νₖ = ν_next
     state.x = x_next
     state.k += 1
-    end
 
     return (;
-            ϵₖ = state.ϵₖ,
-            νₖ = state.νₖ,
-            it_ls,
-            gᵏ_norm,
-            F = 2 + it_ls,              # orcale calls
-            ∂F_elt = gs.m+1,
-            is_differentiable = 1,
-            ), iteration_status
+        ϵₖ = state.ϵₖ,
+        νₖ = state.νₖ,
+        it_ls,
+        gᵏ_norm,
+        F = 2 + it_ls,              # orcale calls
+        ∂F_elt = gs.m + 1,
+        is_differentiable = 1,
+    ),
+    iteration_status
 end
 
-
-
 get_minimizer_candidate(state::GradientSamplingState) = state.x
+
+
+# function find_minimumnormelt_CHP(∂gᵢs::Matrix{Tf}) where {Tf}
+#     set = CHP.SimplexShadow(∂gᵢs)
+#     x0 = zeros(Tf, size(∂gᵢs, 2))
+
+#     showtermination = true
+#     showtrace = true
+#     showls = false
+#     α, str = CHP.optimize(set, x0; showtermination, showtrace, showls, maxiter = 13)
+#     return α
+# end
+
+function samplegradients!(∂gᵢs, pb, x, ϵₖ)
+    n = size(∂gᵢs, 1)
+    nsamples = size(∂gᵢs, 2) - 1
+
+    for i = 1:nsamples
+        ∂gᵢ = @view ∂gᵢs[:, i]
+        ∂gᵢ .= rand(MvNormal(zeros(n), ScalMat(n, 1.0)))
+        ∂gᵢ .*= ϵₖ * rand()^(1 / n) / norm(∂gᵢ)
+        ∂gᵢ .+= x
+        ∂gᵢ .= ∂F_elt(pb, ∂gᵢ)
+    end
+    ∂gᵢs[:, end] .= ∂F_elt(pb, x)
+    return
+end

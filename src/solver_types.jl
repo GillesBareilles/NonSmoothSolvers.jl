@@ -4,7 +4,7 @@
 Stores information after one iteration of the optimizer. Generic information is stored explicitly in the struct,
 custom information may be stored in the field `additionalinfo::NamedTuple`.
 """
-Base.@kwdef struct OptimizationState{Tf, Ti}
+Base.@kwdef struct OptimizationState{Tf,Ti}
     it::Int64 = 0
     time::Float64 = 0.0
     Fx::Tf
@@ -28,4 +28,3 @@ Base.@kwdef struct OptimizerParams
     trace_length::Int64 = 20
     cvcheckers::Set{ConvergenceChecker} = Set([])
 end
-

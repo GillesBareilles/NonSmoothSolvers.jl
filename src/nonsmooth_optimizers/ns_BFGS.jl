@@ -1,11 +1,11 @@
-
-Base.@kwdef struct NSBFGS <: NonSmoothOptimizer
-    ϵ_opt::Float64 = 1e-8
+Base.@kwdef struct NSBFGS{Tf} <: NonSmoothOptimizer{Tf}
+    ϵ_opt::Tf = 1e-8
 end
 
 
-Base.@kwdef mutable struct NSBFGSState{Tf}
+Base.@kwdef mutable struct NSBFGSState{Tf} <: OptimizerState{Tf}
     x::Vector{Tf}
+    fx::Tf
     ∇f::Vector{Tf}
     ∇f_next::Vector{Tf}
     Hₖ::Matrix{Tf}
@@ -15,6 +15,7 @@ function initial_state(::NSBFGS, initial_x::Vector{Tf}, pb) where {Tf}
     n = length(initial_x)
     return NSBFGSState(
         x = initial_x,
+        fx = F(pb, initial_x),
         ∇f = ∂F_elt(pb, initial_x),
         ∇f_next = zeros(Tf, n),
         Hₖ = Matrix{Tf}(I, n, n),
@@ -41,38 +42,27 @@ function update_iterate!(state, bfgs::NSBFGS, pb)
     iteration_status = iteration_completed
 
     dₖ = similar(state.∇f)
-    x_next = similar(state.x)
 
     ## 1. Compute descent direction
-    @timeit_debug "1. Descent direction" begin
     dₖ .= -1 .* state.Hₖ * state.∇f
-    end
 
     ## 2. Execute linesearch
-    @timeit_debug "2. Linesearch" begin
-    tₖ, ls_ncalls = linesearch_nsbfgs(pb, state.x, state.∇f, dₖ)
-    end
+    xₖ₊₁, fₖ₊₁, vₖ₊₁, isdiffₖ₊₁, tₖ, ls_ncalls, lsfailed =
+        linesearch_nsbfgs(pb, state.x, state.fx, state.∇f, dₖ)
+    lsfailed && (iteration_status = iteration_failed)
 
-    @timeit_debug "3. Step, subgradient" begin
-    x_next .= state.x .+ tₖ .* dₖ
-    state.∇f_next .= ∂F_elt(pb, x_next)
-    end
+    state.∇f_next .= vₖ₊₁
 
-    ## 3. Check diff at new point
-    @timeit_debug "4. Diff check, stop test" begin
-    if !is_differentiable(pb, x_next)
-        @warn "Algorithm breaks down (in theory)"
-        @warn "Linesearch returned point of nondifferentiability."
+    ## 3. Check differentiability at new point
+    if !isdiffₖ₊₁
+        @warn "Algorithm breaks down (in theory): Linesearch returned point of nondifferentiability."
         iteration_status = iteration_failed
     end
-
     if norm(state.∇f_next) ≤ bfgs.ϵ_opt
         iteration_status = problem_solved
     end
-    end
 
     ## 4. Update BFGS matrix
-    @timeit_debug "5. BFGS update" begin
     sₖ = tₖ .* dₖ
     yₖ = state.∇f_next - state.∇f
 
@@ -87,26 +77,27 @@ function update_iterate!(state, bfgs::NSBFGS, pb)
         uₖ = state.Hₖ * yₖ
 
         c1 = (dot(yₖ, uₖ) + dot_yₖ_sₖ) / dot_yₖ_sₖ^2
-        c2 = 1/dot_yₖ_sₖ
+        c2 = 1 / dot_yₖ_sₖ
 
-        state.Hₖ = state.Hₖ + c1 * (sₖ*sₖ') - c2 * (sₖ*uₖ' + uₖ*sₖ')
+        state.Hₖ .= state.Hₖ .+ c1 .* (sₖ * sₖ') .- c2 * (sₖ * uₖ' .+ uₖ * sₖ')
     else
         @warn "No update of BFGS inverse hessian approximation here" dot_yₖ_sₖ
     end
-    end
 
-
-    state.x .= x_next
+    state.x .= xₖ₊₁
     state.∇f .= state.∇f_next
+    state.fx = fₖ₊₁
 
-    return (;dot_yₖ_sₖ,
-            ls_niter = ls_ncalls.it_ls,
-            ∇F_nextnorm=norm(state.∇f),
-            dnorm=norm(dₖ),
-            F = ls_ncalls.F,                # oracle_calls
-            ∂F_elt = 1 + ls_ncalls.∂F_elt,
-            is_differentiable = 1
-            ), iteration_status
+    return (;
+        dot_yₖ_sₖ,
+        ls_niter = ls_ncalls.it_ls,
+        ∇F_nextnorm = norm(state.∇f),
+        dnorm = norm(dₖ),
+        F = ls_ncalls.F,                # oracle_calls
+        ∂F_elt = 1 + ls_ncalls.∂F_elt,
+        is_differentiable = 1,
+    ),
+    iteration_status
 end
 
 

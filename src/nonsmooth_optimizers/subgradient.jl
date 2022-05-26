@@ -1,12 +1,13 @@
-struct Subgradient <: NonSmoothOptimizer end
+struct Subgradient{Tf} <: NonSmoothOptimizer{Tf} end
 
-Base.@kwdef mutable struct SubgradientState{Tx}
-    x::Tx           # point
-    v::Tx           # subgradient
+Base.@kwdef mutable struct SubgradientState{Tf} <: OptimizerState{Tf}
+    x::Vector{Tf}           # point
+    v::Vector{Tf}           # subgradient
     k::Int64 = 1
 end
 
-initial_state(::Subgradient, initial_x, pb) = SubgradientState(x=initial_x, v=initial_x .* 0)
+initial_state(::Subgradient, initial_x, pb) =
+    SubgradientState(x = initial_x, v = initial_x .* 0)
 
 
 #
@@ -21,7 +22,7 @@ print_header(::Subgradient) = println("**** Subgradient algorithm")
 function update_iterate!(state, ::Subgradient, pb)
     state.v = ∂F_elt(pb, state.x)
 
-    state.x -= 1/state.k * state.v
+    state.x -= 1 / state.k * state.v
     state.k += 1
 
     return NamedTuple(), iteration_completed
