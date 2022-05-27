@@ -4,12 +4,14 @@ authors = ["Gilles Bareilles <gilles.bareilles@protonmail.com>"]
 version = "0.1.0"
 
 [deps]
+ConvexHullProjection = "23bb58a7-9af7-4ddc-91d0-c8528a741764"
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 DocStringExtensions = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
 Infiltrator = "5903a43b-9cc3-4c30-8d17-598619ec4e9b"
 JuMP = "4076af6c-e467-56ae-b986-b466b2749572"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+LinearOperators = "5c8ed15e-5a4c-59e4-a42b-c7e8811fb125"
 NonSmoothProblems = "5655f2e6-550e-45fb-8023-520ea411539c"
 OSQP = "ab2f91bb-94b4-55e3-9ba0-7f65df51de79"
 PDMats = "90014a1f-27ba-587c-ab20-58faa44d9150"

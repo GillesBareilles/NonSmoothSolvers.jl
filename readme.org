@@ -61,6 +61,9 @@ xfinal_gs, tr = optimize!(pb, o, x; optparams)
 
 o = NSBFGS()
 xfinal_nsbfgs, tr = optimize!(pb, o, x; optparams)
+
+o = VUbundle()
+xfinal_vu, tr = optimize!(pb, o, x; optparams)
 #+end_src
 
 Other problems:
