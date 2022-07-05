@@ -17,6 +17,10 @@ using JuMP
 using OSQP
 using SparseArrays
 
+using LinearMaps
+using IterativeSolvers
+
+
 const NSS = NonSmoothSolvers
 
 import TimerOutputs: enable_debug_timings, disable_debug_timings
@@ -46,10 +50,14 @@ include("nonsmooth_optimizers/nearestpointpolytope.jl")
 export NearestPointPolytope, NearestPointPolytopeState
 export nearest_point_polytope
 
+export quadprogsimplex, quadprogsimplex!
+
 include("nonsmooth_optimizers/subgradient.jl")
 include("nonsmooth_optimizers/gradientsampling.jl")
 include("nonsmooth_optimizers/ns_BFGS_linesearch.jl")
 include("nonsmooth_optimizers/ns_BFGS.jl")
+
+include("nonsmooth_optimizers/quadprogdirectionfinding.jl")
 
 export NSS
 
