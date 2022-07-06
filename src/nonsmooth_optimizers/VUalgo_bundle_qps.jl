@@ -35,38 +35,48 @@ end
 ################################################################################
 ## Primal bundle step
 ################################################################################
+abstract type AbstractχQPSolver end
+struct χOSQP <: AbstractχQPSolver end
+struct χCHP <: AbstractχQPSolver end
+
 function solve_χQP(pb, μ, x, bundle)
+    α̂  = solve_χQP(μ, bundle, χOSQP())
+    p̂ = x - (1/μ) * sum(α̂[i] * bndlelt.gᵢ for (i, bndlelt) in enumerate(bundle))
+    r̂ = F(pb, x) + maximum(-bndl.eᵢ + dot(bndl.gᵢ, p̂ - x) for (i, bndl) in enumerate(bundle))
+
+    return r̂, p̂, α̂
+end
+
+function solve_χQP(μ, bundle, ::χOSQP)
     nbundle = length(bundle)
 
-    # model = Model(optimizer_with_attributes(OSQP.Optimizer,
-    #                                         "eps_abs" => 1e-12,
-    #                                         "eps_rel" => 1e-12,
-    #                                         "polish" => true
-    #                                         ))
-    # set_silent(model)
+    model = Model(optimizer_with_attributes(OSQP.Optimizer,
+                                            "eps_abs" => 1e-12,
+                                            "eps_rel" => 1e-12,
+                                            "polish" => true
+                                            ))
+    set_silent(model)
 
-    # α = @variable(model, α[1:nbundle])
+    α = @variable(model, α[1:nbundle])
 
-    # # Simplex constraints
-    # @constraint(model, α .≥ 0)
-    # @constraint(model, sum(α) == 1.)
+    # Simplex constraints
+    @constraint(model, α .≥ 0)
+    @constraint(model, sum(α) == 1.)
 
-    # # Objective
-    # eᵢαᵢ = sum(bundleelt.eᵢ * α[i] for (i, bundleelt) in enumerate(bundle))
-    # gᵢαᵢ = sum(bundleelt.gᵢ * α[i] for (i, bundleelt) in enumerate(bundle))
-    # @objective(model, Min, 1/(2μ) * dot(gᵢαᵢ, gᵢαᵢ) + eᵢαᵢ)
-    # JuMP.optimize!(model)
-    # if termination_status(model) ∉ Set([MOI.OPTIMAL, MOI.LOCALLY_SOLVED])
-    #     @warn "solve_χQP: subproblem was not solved to optimality" termination_status(model) primal_status(model) dual_status(model)
-    # end
+    # Objective
+    eᵢαᵢ = sum(bundleelt.eᵢ * α[i] for (i, bundleelt) in enumerate(bundle))
+    gᵢαᵢ = sum(bundleelt.gᵢ * α[i] for (i, bundleelt) in enumerate(bundle))
+    @objective(model, Min, 1/(2μ) * dot(gᵢαᵢ, gᵢαᵢ) + eᵢαᵢ)
+    JuMP.optimize!(model)
+    if termination_status(model) ∉ Set([MOI.OPTIMAL, MOI.LOCALLY_SOLVED])
+        @warn "solve_χQP: subproblem was not solved to optimality" termination_status(model) primal_status(model) dual_status(model)
+    end
 
-    #     @show termination_status(model)
-    #     @show primal_status(model)
-    #     @show dual_status(model)
+    α̂ = value.(α)
+    return α̂
+end
 
-    # α̂ = value.(α)
-
-
+function solve_χQP(μ, bundle, ::χCHP)
     nbundle = length(bundle)
     n = length(first(bundle).gᵢ)
     P = zeros(n, nbundle)
@@ -81,51 +91,57 @@ function solve_χQP(pb, μ, x, bundle)
                              showtrace = false,
                              newtonaccel = false,
                              showls = false)
-
-    p̂ = x - (1/μ) * sum(α̂[i] * bndlelt.gᵢ for (i, bndlelt) in enumerate(bundle))
-    r̂ = F(pb, x) + maximum(-bndl.eᵢ + dot(bndl.gᵢ, p̂ - x) for (i, bndl) in enumerate(bundle))
-
-    return r̂, p̂, α̂
+    return α̂
 end
 
 ################################################################################
 ## Dual bundle step
 ################################################################################
+
+abstract type AbstractγQPSolver end
+struct γOSQP <: AbstractγQPSolver end
+struct γNPP <: AbstractγQPSolver end
+
 function solve_γQP(activebundle)
+    # α̂  = solve_γQP(activebundle, γOSQP())
+    α̂  = solve_γQP(activebundle, γNPP())
+    ŝ = sum(α̂[i] * bndlelt.gᵢ for (i, bndlelt) in enumerate(activebundle))
+
+    return ŝ, α̂
+end
+
+function solve_γQP(activebundle, ::γOSQP)
     nbundle = length(activebundle)
 
-    # model = Model(optimizer_with_attributes(OSQP.Optimizer,
-    #                                         "eps_abs" => 1e-12,
-    #                                         "eps_rel" => 1e-12,
-    #                                         "polish" => true
-    #                                         ))
-    # set_silent(model)
-    # α = @variable(model, α[1:nbundle])
+    model = Model(optimizer_with_attributes(OSQP.Optimizer,
+                                            "eps_abs" => 1e-12,
+                                            "eps_rel" => 1e-12,
+                                            "polish" => true
+                                            ))
+    set_silent(model)
+    α = @variable(model, α[1:nbundle])
 
-    # # Simplex constraints
-    # @constraint(model, α .≥ 0)
-    # @constraint(model, sum(α) == 1.)
+    # Simplex constraints
+    @constraint(model, α .≥ 0)
+    @constraint(model, sum(α) == 1.)
 
-    # # Objective
-    # gᵢαᵢ = sum(bundleelt.gᵢ * α[i] for (i, bundleelt) in enumerate(activebundle))
-    # @objective(model, Min, 1/2 * dot(gᵢαᵢ, gᵢαᵢ))
-    # JuMP.optimize!(model)
-    # if termination_status(model) ∉ Set([MOI.OPTIMAL, MOI.LOCALLY_SOLVED])
-    #     @warn "solve_γQP: subproblem was not solved to optimality" termination_status(model) primal_status(model) dual_status(model)
-    # end
-    # JuMP.optimize!(model)
-    # α̂ = value.(α)
+    # Objective
+    gᵢαᵢ = sum(bundleelt.gᵢ * α[i] for (i, bundleelt) in enumerate(activebundle))
+    @objective(model, Min, 1/2 * dot(gᵢαᵢ, gᵢαᵢ))
+    JuMP.optimize!(model)
+    if termination_status(model) ∉ Set([MOI.OPTIMAL, MOI.LOCALLY_SOLVED])
+        @warn "solve_γQP: subproblem was not solved to optimality" termination_status(model) primal_status(model) dual_status(model)
+    end
+    JuMP.optimize!(model)
+    return α̂ = value.(α)
+end
 
-    #### Solve with Wolfe's algo
+function solve_γQP(activebundle, ::γNPP)
     nbundle = length(activebundle)
     n = length(first(activebundle).gᵢ)
     P = zeros(n, nbundle)
     for (i, bundleelt) in enumerate(activebundle)
         P[:, i] = bundleelt.gᵢ
     end
-    α̂ = nearest_point_polytope(P; show_trace = false)
-
-    ŝ = sum(α̂[i] * bndlelt.gᵢ for (i, bndlelt) in enumerate(activebundle))
-
-    return ŝ, α̂
+    return α̂ = nearest_point_polytope(P; show_trace = false)
 end

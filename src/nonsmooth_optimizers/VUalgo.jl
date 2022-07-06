@@ -1,11 +1,18 @@
-struct VUbundle{Tf} <: NonSmoothOptimizer{Tf}
-    μlow::Tf                # Prox parameter (inverse of γ)
-    ϵ::Tf                   # Stopping criterion on the norm of `s`
-    m::Tf                   # parameter of sufficient decrease for accepting U-Newton iterate
-    Newton_accel::Bool
-end
-function VUbundle(; μlow = 0.5, ϵ = 1e-3, m = 0.5, Newton_accel = false)
-    return VUbundle(μlow, ϵ, m, Newton_accel)
+"""
+    $TYPEDSIGNATURES
+
+Parameters:
+- `σ`: in (0, 0.5!], lower values enforce higher precision on each prox point approximation,
+- `ϵ`: overall precision required
+- `m`: sufficient decrease parameter
+- `μlow`: minimal prox parameter (μ is inverse of γ). Higher μ means smaller serious steps, but less null steps
+"""
+Base.@kwdef struct VUbundle{Tf} <: NonSmoothOptimizer{Tf}
+    μlow::Tf = 0.5
+    σ::Tf = 0.1
+    ϵ::Tf = 1e-10
+    m::Tf = 0.5
+    Newton_accel::Bool = true
 end
 
 Base.@kwdef mutable struct VUbundleState{Tf} <: OptimizerState{Tf}
@@ -33,92 +40,91 @@ end
 #
 print_header(::VUbundle) = println("**** VUbundle algorithm")
 
-display_logs_header_post(gs::VUbundle) = print("#nullsteps     nₖ   ⟨dNewton, sₖ⟩  |dNewton|")
+display_logs_header_post(gs::VUbundle) = print("ϵ̂        |ŝ|          #nullsteps     nₖ   ⟨dNewton, sₖ⟩ |dNewton|")
 
 function display_logs_post(os, gs::VUbundle)
     ai = os.additionalinfo
-    @printf "%-2i             %-2i   % .1e  %2e" ai.nnullsteps ai.nₖ ai.dotsₖstep ai.Newtonsteplength
+    @printf "%.2e %.2e     %-2i             %-2i   % .1e  %.2e" ai.ϵ̂  ai.ŝnorm ai.nnullsteps ai.nₖ ai.dotsₖNewtonstep ai.Newtonsteplength
 end
 
 #
 ### VUbundle method
 #
-function update_iterate!(state, o::VUbundle{Tf}, pb) where Tf
-    μlow = 0.5
-    σ = 1e-5
-    ϵ = 1e-3
-    m = 0.5
-
+function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
     ϵₖ = state.ϵ
     pₖ = state.p
     sₖ = state.s
     Uₖ = state.U
 
-    # @show pₖ
-    xᶜₖ₊₁ = pₖ
-    if o.Newton_accel
-        # Computing U-Hessian estimate
-        nₖ = size(Uₖ, 2)
-        Hₖ = Matrix{Tf}(1.0I, nₖ, nₖ)
+    # Uₖ = zeros(8, 4)
+    # for i in 1:4
+    #     Uₖ[2i, i] = 1
+    # end
 
-        # InverseLBFGSOperator
-        Hₖ = InverseLBFGSOperator(Tf, nₖ)
+    dotsₖNewtonstep = 0.0
+    nₖ = size(Uₖ, 2)
+    Newtonsteplength = 0.0
+
+    xᶜₖ₊₁ = pₖ
+    if VU.Newton_accel
+        # Computing U-Hessian estimate
+        Hₖ = LBFGSOperator(Tf, nₖ, mem = 10)
         for (i, ys) in enumerate(state.histys)
             y, s = ys
             push!(Hₖ, Uₖ' * s, Uₖ' * y)
         end
 
         # Solving Newton equation
-        Δu = - Hₖ * Uₖ' * sₖ
+        Δu = -Hₖ * Uₖ' * sₖ
         xᶜₖ₊₁ = pₖ + Uₖ * Δu
+        # printstyled("-----------------------\n", color = :red)
+        # @show pₖ
+        # @show Δu
+        # @show Uₖ * Δu
 
         sₖ₊₁ = ∂F_elt(pb, xᶜₖ₊₁)
-        ys = (;y = Uₖ * Δu, s = sₖ₊₁ - sₖ)
+        ys = (; y = Uₖ * Δu, s = sₖ₊₁ - sₖ)
         push!(state.histys, ys)
+
+        dotsₖNewtonstep = dot(sₖ, Uₖ * Δu)
+        Newtonsteplength = norm(state.histys[end].y)
+
+        # printstyled("-----------------------\n", color = :red)
+        # display(Matrix(Hₖ))
     end
     # @show xᶜₖ₊₁
 
-    μₖ₊₁ = μlow # prox parameter
+    # μₖ₊₁ = VU.μlow # prox parameter
     μₖ₊₁ = 3.0 # prox parameter
 
-    # Bundle subroutine at point xᶜₖ₊₁
-    # aka proximal step approximation
-    ϵᶜₖ₊₁, pᶜₖ₊₁, sᶜₖ₊₁, Uᶜₖ₊₁, bundleinfo = bundlesubroutine(pb, μₖ₊₁, xᶜₖ₊₁, σ)
+    # Bundle subroutine at point xᶜₖ₊₁ (ie proximal step approximation)
+    ϵᶜₖ₊₁, pᶜₖ₊₁, sᶜₖ₊₁, Uᶜₖ₊₁, bundleinfo = bundlesubroutine(pb, μₖ₊₁, xᶜₖ₊₁, VU.σ, VU.ϵ)
 
-
-    if F(pb, pᶜₖ₊₁) ≤ F(pb, pₖ) - m / (2μₖ₊₁) * norm(sᶜₖ₊₁)^2
-        ϵₖ₊₁, pₖ₊₁, sₖ₊₁, Uₖ₊₁ = ϵᶜₖ₊₁, pᶜₖ₊₁, sᶜₖ₊₁, Uᶜₖ₊₁
-
-        state.ϵ = ϵₖ₊₁
-        state.p = pₖ₊₁
-        state.s = sₖ₊₁
-        state.U = Uₖ₊₁
+    if F(pb, pᶜₖ₊₁) ≤ F(pb, pₖ) - VU.m / (2μₖ₊₁) * norm(sᶜₖ₊₁)^2
+        state.ϵ, state.p, state.s, state.U = ϵᶜₖ₊₁, pᶜₖ₊₁, sᶜₖ₊₁, Uᶜₖ₊₁
     else
         # Linesearch on line pₖ → pᶜₖ₊₁ to get an xₖ₊₁ such that F(xₖ₊₁) ≤ F(pₖ)
         @warn "U-Newton + approximate prox failed to provide sufficient decrease"
         xₖ₊₁ = F(pb, pₖ) < F(pb, pᶜₖ₊₁) ? pₖ : pᶜₖ₊₁
 
-        ϵₖ₊₁, pₖ₊₁, sₖ₊₁, Uₖ₊₁, bundleinfo = bundlesubroutine(pb, μₖ₊₁, xₖ₊₁, σ)
-
-        state.ϵ = ϵₖ₊₁
-        state.p = pₖ₊₁
-        state.s = sₖ₊₁
-        state.U = Uₖ₊₁
+        state.ϵ, state.p, state.s, state.U, bundleinfo = bundlesubroutine(pb, μₖ₊₁, xₖ₊₁, VU.σ, VU.ϵ; printlev = 0)
     end
 
-
+    iteration_status = iteration_completed
+    if norm(state.s)^2 ≤ VU.ϵ && state.ϵ ≤ VU.ϵ
+        @show norm(state.s)^2 state.ϵ
+        iteration_status = problem_solved
+    end
     state.k += 1
 
     return (;
+            ϵ̂ = state.ϵ,
+            ŝnorm = norm(state.s),
             bundleinfo.nnullsteps,
-            dotsₖstep = dot(sₖ, Uₖ * Δu),
+            dotsₖNewtonstep,
             nₖ,
-            Newtonsteplength = norm(state.histys[end].y),
-    ), iteration_completed
+            Newtonsteplength,
+    ), iteration_status
 end
-
-
-using JuMP, OSQP
-
 
 get_minimizer_candidate(state::VUbundleState) = state.p

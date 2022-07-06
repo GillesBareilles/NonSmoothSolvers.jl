@@ -5,7 +5,7 @@ Compute one serious step of the proximal bundle algorithm:
 $\arg\min_z F(z) + 0.5 * μ \|z - x\|^2$.
 Return ...
 """
-function bundlesubroutine(pb, μ::Tf, x::Vector{Tf}, σ::Tf; printlev=0) where Tf
+function bundlesubroutine(pb, μ::Tf, x::Vector{Tf}, σ::Tf, ϵglobal; printlev=0) where Tf
     bundle = [bundlepoint(pb, x, x)]
 
     α̂minnormelt = nothing
@@ -30,9 +30,14 @@ function bundlesubroutine(pb, μ::Tf, x::Vector{Tf}, σ::Tf; printlev=0) where T
         (printlev>0) && @printf "%2i  %2i  %2i        %.2e  % .2e  %.2e\n" it length(bundle) length(activebundle) norm(ŝ) ϵ̂ (σ / μ * norm(ŝ)^2)
         bundle = deepcopy(activebundle)
 
-        if (ϵ̂ < σ / μ * norm(ŝ)^2) || norm(ŝ) < 10*eps(Tf)
+        if (ϵ̂ < σ / μ * norm(ŝ)^2) #|| max(norm(ŝ)^2, μ / σ * ϵ̂) < ϵglobal # NOTE: stopped here, this stopping criterion is unclear
             break
         end
+        if  norm(ŝ) < 10*eps(Tf) && ϵ̂ < 10*eps(Tf)
+            @warn "breaking here: both ŝ, the ϵ̂-subgradient of F at p̂, and ϵ̂, the error beetwen f(p̂) and the cutting planes model are null up to machine precision" it norm(ŝ) ϵ̂
+            break
+        end
+
         it += 1
         if it > 50
             @warn "too much null steps, exiting to serious step" it
