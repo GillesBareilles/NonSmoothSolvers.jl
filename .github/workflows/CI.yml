@@ -31,6 +31,7 @@ jobs:
           arch: ${{ matrix.arch }}
       - uses: julia-actions/cache@v1
       - run: |
+          ssh-keyscan codeberg.org >> /root/.ssh/known_hosts |
           julia --project=NonSmoothSolvers -e '
           using Pkg
           Pkg.Registry.add(RegistrySpec(url = "https://github.com/GillesBareilles/OptimRegistry.jl"))
@@ -51,6 +52,7 @@ jobs:
         with:
           version: '1'
       - run: |
+          ssh-keyscan codeberg.org >> /root/.ssh/known_hosts |
           julia --color=yes -e '
           using Pkg
           Pkg.Registry.add(RegistrySpec(url = "https://github.com/GillesBareilles/OptimRegistry.jl"))
