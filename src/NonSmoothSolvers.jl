@@ -13,8 +13,6 @@ using DataStructures
 using Infiltrator
 using DocStringExtensions
 
-# using IterativeSolvers
-
 using QuadProgSimplex
 
 const NSS = NonSmoothSolvers

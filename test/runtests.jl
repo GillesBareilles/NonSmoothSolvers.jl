@@ -21,7 +21,7 @@ end
         xinit = Tf[1, 1]
 
         @testset "Optimizer $(typeof(o))" for (o, xtol) in [
-            (GradientSampling(xinit), 1e-6),
+            (GradientSampling(xinit), 1e-2),
             (NSBFGS{Tf}(), 1e-8),
             (Subgradient{Tf}(), 1e-2),
         ]
