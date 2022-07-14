@@ -1,46 +1,15 @@
-using ConvexHullProjection
-
-import ConvexHullProjection: f, ∇f!, ∇²f!, g, prox_γg!
-
-raw"""
-    SimplexShadow{Tf}
-Models the convex hull of vectors gs.
-"""
-struct PrimalQPPb{Tf} <: CHP.StructuredSet{Tf}
-    A::Matrix{Tf}
-    b::Vector{Tf}
-    μ::Tf
-end
-
-f(ch::PrimalQPPb, α, ::CHP.AmbRepr) = 1/(2 * ch.μ) * norm(ch.A * α)^2 + dot(ch.b, α)
-
-∇f!(res, ch::PrimalQPPb, α, ::CHP.AmbRepr) = (res .= (1/ch.μ) .* ch.A' * ch.A * α .+ ch.b)
-
-∇²f!(res, ch::PrimalQPPb, x, d, ::CHP.AmbRepr) = (res .= (1/ch.μ) .* ch.A' * ch.A * d)
-
-g(::PrimalQPPb, α, ::CHP.AmbRepr) = sum(α) == 1 && sum(α .>= 0) == length(α)
-
-
-"""
-    prox_γg!(res, ch, α)
-Computes the prox of the indicator of the simplex, which amounts to projecting onto the simplex.
-"""
-function prox_γg!(res, ::PrimalQPPb{Tf}, α, ::CHP.AmbRepr) where Tf
-    M = CHP.project_simplex!(res, α)
-    return M
-end
-
-
-
 ################################################################################
 ## Primal bundle step
 ################################################################################
 abstract type AbstractχQPSolver end
 struct χOSQP <: AbstractχQPSolver end
 struct χCHP <: AbstractχQPSolver end
+struct χQPSimplex <: AbstractχQPSolver end
 
 function solve_χQP(pb, μ, x, bundle)
-    α̂  = solve_χQP(μ, bundle, χOSQP())
+    # α̂  = solve_χQP(μ, bundle, χOSQP())
+    α̂  = solve_χQP(μ, bundle, χQPSimplex())
+
     p̂ = x - (1/μ) * sum(α̂[i] * bndlelt.gᵢ for (i, bndlelt) in enumerate(bundle))
     r̂ = F(pb, x) + maximum(-bndl.eᵢ + dot(bndl.gᵢ, p̂ - x) for (i, bndl) in enumerate(bundle))
 
@@ -76,21 +45,16 @@ function solve_χQP(μ, bundle, ::χOSQP)
     return α̂
 end
 
-function solve_χQP(μ, bundle, ::χCHP)
+function solve_χQP(μ::Tf, bundle, ::χQPSimplex) where Tf
     nbundle = length(bundle)
     n = length(first(bundle).gᵢ)
-    P = zeros(n, nbundle)
+    P = zeros(Tf, n, nbundle)
     for (i, bundleelt) in enumerate(bundle)
         P[:, i] = bundleelt.gᵢ
     end
-    b = [bundleelt.eᵢ for bundleelt in bundle]
-    χpb = PrimalQPPb(P, b, μ)
+    b = μ * [bundleelt.eᵢ for bundleelt in bundle]
 
-    α̂, manifold = optimize(χpb, ones(nbundle)./nbundle;
-                             showtermination = false,
-                             showtrace = false,
-                             newtonaccel = false,
-                             showls = false)
+    α̂ = qpsimplex(P, b; check_optimality = false)
     return α̂
 end
 

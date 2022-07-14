@@ -7,7 +7,7 @@ function main()
 
     @show F(pb, x)
 
-    o = VUbundle()
+    o = VUbundle(Newton_accel = true)
     optparams = OptimizerParams(iterations_limit=20, trace_length=20)
     sol, tr = optimize!(pb, o, x; optparams)
 

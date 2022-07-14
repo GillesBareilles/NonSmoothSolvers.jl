@@ -23,12 +23,13 @@ function bundlesubroutine(pb, μ::Tf, x::Vector{Tf}, σ::Tf, ϵglobal; printlev=
         r̂, p̂, α̂ = solve_χQP(pb, μ, x, bundle)
         ϵ̂ = F(pb, p̂) - r̂
 
-        activebundle = form_active_bundle(pb, bundle, α̂, p̂, x, r̂)
+        # removing entries of the bundle corresponding to null coordinates of α̂
+        deleteat!(bundle, findall(t->t==0, α̂))
+        push!(bundle, bundlepoint(pb, p̂, x))
 
-        ŝ, α̂minnormelt = solve_γQP(activebundle)
+        ŝ, α̂minnormelt = solve_γQP(bundle)
 
-        (printlev>0) && @printf "%2i  %2i  %2i        %.2e  % .2e  %.2e\n" it length(bundle) length(activebundle) norm(ŝ) ϵ̂ (σ / μ * norm(ŝ)^2)
-        bundle = deepcopy(activebundle)
+        (printlev>0) && @printf "%2i  %2i  %2i        %.2e  % .2e  %.2e\n" it length(bundle) length(bundle) norm(ŝ) ϵ̂ (σ / μ * norm(ŝ)^2)
 
         if (ϵ̂ < σ / μ * norm(ŝ)^2) #|| max(norm(ŝ)^2, μ / σ * ϵ̂) < ϵglobal # NOTE: stopped here, this stopping criterion is unclear
             break
@@ -39,13 +40,13 @@ function bundlesubroutine(pb, μ::Tf, x::Vector{Tf}, σ::Tf, ϵglobal; printlev=
         end
 
         it += 1
-        if it > 50
+        if it > 500
             @warn "too much null steps, exiting to serious step" it
             break
         end
     end
 
-    Û = get_Uorthonormalbasis(activebundle, α̂minnormelt)
+    Û = get_Uorthonormalbasis(bundle, α̂minnormelt)
     return ϵ̂, p̂, ŝ, Û, (; nnullsteps = it)
 end
 
@@ -77,20 +78,3 @@ function bundlepoint(pb, yᵢ, x)
 
     return (; fᵢ, gᵢ, eᵢ, yᵢ)
 end
-
-
-function form_active_bundle(pb, bundle, α̂, p̂, x, r̂)
-    actbndl = []
-    for (i, bndlelt) in enumerate(bundle)
-        αcond = α̂[i] > 1e-14
-        modelcond = norm(r̂ - (F(pb, x) - bndlelt.eᵢ  + dot(bndlelt.gᵢ, p̂ - x))) < 1e-13
-        # @show αcond, modelcond
-
-        if αcond
-            push!(actbndl, bndlelt)
-        end
-    end
-    push!(actbndl, bundlepoint(pb, p̂, x))
-    return actbndl
-end
-

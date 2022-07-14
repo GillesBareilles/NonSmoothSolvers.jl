@@ -4,7 +4,6 @@ authors = ["Gilles Bareilles <gilles.bareilles@protonmail.com>"]
 version = "0.1.0"
 
 [deps]
-ConvexHullProjection = "23bb58a7-9af7-4ddc-91d0-c8528a741764"
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 DocStringExtensions = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
@@ -16,6 +15,7 @@ NonSmoothProblems = "5655f2e6-550e-45fb-8023-520ea411539c"
 OSQP = "ab2f91bb-94b4-55e3-9ba0-7f65df51de79"
 PDMats = "90014a1f-27ba-587c-ab20-58faa44d9150"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+QuadProgSimplex = "85789b06-2fe2-4664-9b69-af753cb80372"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"

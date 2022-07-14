@@ -28,8 +28,8 @@ function initial_state(::VUbundle{Tf}, initial_x::Vector{Tf}, pb) where Tf
     return VUbundleState(
         p = initial_x,
         s = ∂F_elt(pb, initial_x),
-        ϵ = 1.0,
-        U = Matrix(1.0I, length(initial_x), 1),
+        ϵ = Tf(1.0),
+        U = Matrix{Tf}(1.0I, length(initial_x), 1),
         histys = NamedTuple{(:y, :s), Tuple{Vector{Tf}, Vector{Tf}}}[],
     )
 end
@@ -56,11 +56,6 @@ function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
     sₖ = state.s
     Uₖ = state.U
 
-    # Uₖ = zeros(8, 4)
-    # for i in 1:4
-    #     Uₖ[2i, i] = 1
-    # end
-
     dotsₖNewtonstep = 0.0
     nₖ = size(Uₖ, 2)
     Newtonsteplength = 0.0
@@ -69,18 +64,13 @@ function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
     if VU.Newton_accel
         # Computing U-Hessian estimate
         Hₖ = LBFGSOperator(Tf, nₖ, mem = 10)
-        for (i, ys) in enumerate(state.histys)
-            y, s = ys
+        for (y, s) in state.histys
             push!(Hₖ, Uₖ' * s, Uₖ' * y)
         end
 
         # Solving Newton equation
         Δu = -Hₖ * Uₖ' * sₖ
         xᶜₖ₊₁ = pₖ + Uₖ * Δu
-        # printstyled("-----------------------\n", color = :red)
-        # @show pₖ
-        # @show Δu
-        # @show Uₖ * Δu
 
         sₖ₊₁ = ∂F_elt(pb, xᶜₖ₊₁)
         ys = (; y = Uₖ * Δu, s = sₖ₊₁ - sₖ)
@@ -88,14 +78,10 @@ function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
 
         dotsₖNewtonstep = dot(sₖ, Uₖ * Δu)
         Newtonsteplength = norm(state.histys[end].y)
-
-        # printstyled("-----------------------\n", color = :red)
-        # display(Matrix(Hₖ))
     end
-    # @show xᶜₖ₊₁
 
     # μₖ₊₁ = VU.μlow # prox parameter
-    μₖ₊₁ = 3.0 # prox parameter
+    μₖ₊₁ = Tf(3.0) # prox parameter
 
     # Bundle subroutine at point xᶜₖ₊₁ (ie proximal step approximation)
     ϵᶜₖ₊₁, pᶜₖ₊₁, sᶜₖ₊₁, Uᶜₖ₊₁, bundleinfo = bundlesubroutine(pb, μₖ₊₁, xᶜₖ₊₁, VU.σ, VU.ϵ)
@@ -112,7 +98,7 @@ function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
 
     iteration_status = iteration_completed
     if norm(state.s)^2 ≤ VU.ϵ && state.ϵ ≤ VU.ϵ
-        @show norm(state.s)^2 state.ϵ
+        @info "problem solved" norm(state.s)^2 state.ϵ
         iteration_status = problem_solved
     end
     state.k += 1
