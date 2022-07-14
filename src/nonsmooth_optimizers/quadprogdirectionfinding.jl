@@ -40,11 +40,26 @@ function display_logs(state, ::QuadProgSimplex; time_count, P, a)
     @printf "%4i  %.1e   %-.16e   %s\n" state.it time_count 0.5*norm(P*x)^2+dot(a,x) findall(state.J)
 end
 
-function quadprogsimplex(P::Tm, a::Tv; show_trace = false) where {Tf, Tm<:AbstractMatrix{Tf}, Tv<:AbstractVector{Tf}}
+raw"""
+    $TYPEDSIGNATURES
+
+Solve the problem $min_{x \in \Delta} 0.5 \|Px\|^2 + \langle a, x\rangle$ where $x$
+is constrained to the simplex set $\Delta$ (non-negative coordinates that sum
+to one).
+
+Reference:
+- Kiwiel (1986) A Method for Solving Certain Quadratic Programming Problems
+  Arising in Nonsmooth Optimization, IMA Journal of Numerical Analysis.
+"""
+function quadprogsimplex(P::Tm, a::Tv; show_trace = false, check_optimality=false) where {Tf, Tm<:AbstractMatrix{Tf}, Tv<:AbstractVector{Tf}}
     o = QuadProgSimplex(Tf)
     state = initial_state(o, P)
     initialize_state!(state, P, a)
     quadprogsimplex!(state, o, P, a; show_trace)
+
+    if check_optimality
+        checkoptimality(P, a, state.ydense, state.J; print=true)
+    end
     return get_minimizer_candidate(state)
 end
 
@@ -162,44 +177,39 @@ function update_iterate!(state, ::QuadProgSimplex{Tf}, P, a) where {Tf}
     return iteration_completed
 end
 
-# function display_optimizerstatus(
-#     pb,
-#     ::QuadProgSimplex,
-#     state,
-#     initial_x,
-#     stopped_by_updatefailure,
-#     stopped_by_time_limit,
-#     iteration,
-#     time_count,
-# )
-#     x_final = get_minimizer_candidate(state)
-#     println("
-# * status:
-#     final point value:      $(F(pb, x_final))
-#     stopped by it failure:  $(stopped_by_updatefailure)
-#     stopped by time:        $(stopped_by_time_limit)
-# * Counters:
-#     Iterations:  $iteration
-#     Time:        $time_count")
+function checkoptimality(P, a, x)
+    J = x .> eps(Float64)
+    return checkoptimality(P, a, x, J)
+end
 
-#     S = state.S
-#     w = state.w
-#     x = state.x
-#     println("S                    \t", collect(S))
-#     println("1 - eᵀw               \t", sum(w) - 1)
-#     println("|x - P*w|             \t", norm(x - pb.P * w))
-#     println(
-#         "Max{|xᵀPⱼ - xᵀx|, j∈S} \t",
-#         maximum([abs(dot(x, pb.P[:, j]) - dot(x, x)) for j in S]),
-#     )
-#     println(
-#         "Min{xᵀPⱼ - xᵀx, j}     \t",
-#         minimum([dot(x, pb.P[:, j]) - dot(x, x) for j in axes(pb.P, 2)]),
-#     )
-#     return
-# end
+raw"""
+    $TYPEDSIGNATURES
+
+Check optimality of point `x` with nonnull coordinates `Jac` by checking tolerences
+ on the KKT system (2.1) of Kiwiel's paper.
+
+The multiplier `v` is computed so as to solve the second line of the system. We
+thus check that $x \ge 0$, $\sum x_i = 1$ and that, for each nonnull coordinate
+$x_j$, $v + P_j^{\top} P x + a_j = 0$.
+"""
+function checkoptimality(P, a, x, Jact; print=false)
+    v = - minimum(P' * P * x + a)
+
+    res_posx = max(-minimum(x[Jact]), 0)
+    res_sumone = abs(sum(x[Jact]) - 1)
+    res_Riemanngrad = norm([P[:, j]' * P * x + a[j] + v for j in findall(Jact)])
+
+    if print
+        println("x ≥ 0                  : ", res_posx)
+        println("∑ x - 1                : ", res_sumone)
+        println("gradient on active face: ", res_Riemanngrad)
+    end
+
+    return max(res_posx, res_sumone, res_Riemanngrad)
+end
 
 get_minimizer_candidate(state::QuadProgSimplexState) = state.ydense
+get_activeface_candidate(state::QuadProgSimplexState) = findall(state.J)
 
 
 

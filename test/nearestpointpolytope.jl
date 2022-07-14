@@ -39,30 +39,6 @@ function find_minimumnormelt_OSQP(P)
     return find_minimumnormelt_OSQP(P, zeros(size(P, 2)))
 end
 
-function getbundlelikeproblem(;n=20, ngroups=4, nvecpergroup=6)
-    basevecs = rand(n, ngroups)
-    P = zeros(n, ngroups * nvecpergroup)
-    for i = 1:ngroups
-        for j = 1+(i-1)*nvecpergroup:i*nvecpergroup
-            P[:, j] .= basevecs[:, i] + 1e-6 * randn(n)
-        end
-    end
-    return P
-end
-
-function getKiwieltestpb(; n=5, Tf=Float64, b = 1e5)
-    m = 2n+2
-    P = Tf[j / (i + j) for i in 1:n, j in 1:m]
-    Ĵ = 1:floor(n/2)
-
-    x̄ = Tf[ j in Ĵ ? 1/(j+1) : 0 for j in 1:m]
-    v̄ = minimum([- P[:, j]' * P * x̄ for j in 1:m])
-    a = [ -v̄ - P[:, j]' * P * x̄ + (j in Ĵ ? 0 : b) for j in 1:m]
-
-    return P, a, x̄, Ĵ
-end
-
-
 @testset "Nearest point of polytope - Float64" begin
     P = Float64[
         0 3 -2
