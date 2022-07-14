@@ -15,7 +15,7 @@ function getpb(Tf)
 end
 
 @testset "Simple max of quad example" begin
-    optparams = OptimizerParams(; iterations_limit = 60, trace_length = 5, time_limit = 1.0)
+    optparams = OptimizerParams(; iterations_limit = 60, trace_length = 0, time_limit = 1.0, show_trace = false)
     @testset "Tf = $Tf" for Tf in [Float64, BigFloat]
         pb = getpb(Tf)
         xinit = Tf[1, 1]
@@ -24,8 +24,10 @@ end
             (GradientSampling(xinit), 1e-2),
             (NSBFGS{Tf}(), 1e-8),
             (Subgradient{Tf}(), 1e-2),
+            (VUbundle{Tf}(), 1e-5),
         ]
 
+            xfinal_gs, tr = NSS.optimize!(pb, o, xinit; optparams)
             xfinal_gs, tr = NSS.optimize!(pb, o, xinit; optparams)
             @test isa(xfinal_gs, Vector{Tf})
             @test xfinal_gs ≈ Tf[0, 0] atol = xtol

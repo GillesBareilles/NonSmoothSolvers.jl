@@ -32,6 +32,7 @@ jobs:
       - uses: julia-actions/cache@v1
       - run: |
           julia --project=NonSmoothSolvers -e '
+          ENV["JULIA_PKG_USE_CLI_GIT"] = true
           using Pkg
           Pkg.Registry.add(RegistrySpec(url = "https://github.com/GillesBareilles/OptimRegistry.jl"))
           Pkg.Registry.update()
@@ -52,6 +53,7 @@ jobs:
           version: '1'
       - run: |
           julia --color=yes -e '
+          ENV["JULIA_PKG_USE_CLI_GIT"] = true
           using Pkg
           Pkg.Registry.add(RegistrySpec(url = "https://github.com/GillesBareilles/OptimRegistry.jl"))
           Pkg.Registry.update()
