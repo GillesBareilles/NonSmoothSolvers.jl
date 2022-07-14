@@ -31,8 +31,8 @@ jobs:
           arch: ${{ matrix.arch }}
       - uses: julia-actions/cache@v1
       - run: |
-          ssh-keyscan codeberg.org >> /root/.ssh/known_hosts |
           julia --project=NonSmoothSolvers -e '
+          ENV["JULIA_PKG_USE_CLI_GIT"] = true
           using Pkg
           Pkg.Registry.add(RegistrySpec(url = "https://github.com/GillesBareilles/OptimRegistry.jl"))
           Pkg.Registry.update()
@@ -52,8 +52,8 @@ jobs:
         with:
           version: '1'
       - run: |
-          ssh-keyscan codeberg.org >> /root/.ssh/known_hosts |
           julia --color=yes -e '
+          ENV["JULIA_PKG_USE_CLI_GIT"] = true
           using Pkg
           Pkg.Registry.add(RegistrySpec(url = "https://github.com/GillesBareilles/OptimRegistry.jl"))
           Pkg.Registry.update()

@@ -122,7 +122,7 @@ Most of the time is spent with the resolution of the QP.
 This is a work in progress. In particular, there may be bugs in algorithms, and the todo list is:
 - [ ] list features of ~optimize!~;
 # - [X] ~GradientSampling~: solve subproblem with ~ConvexHullProjection~ (with warmstart?)
-- [ ] describe interactions with other packages (NonSmoothProblems, OptimPlots, ...);
+# - [ ] describe interactions with other packages (NonSmoothProblems, OptimPlots, ...);
 # - [ ] bring in nonconvex prox and proximal point;
 # - [ ] add acceleration methods of proximal point;
-- [ ] test optimization methods;
+# - [X] test optimization methods;
