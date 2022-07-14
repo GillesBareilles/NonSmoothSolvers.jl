@@ -13,13 +13,9 @@ using DataStructures
 using Infiltrator
 using DocStringExtensions
 
-using JuMP
-using OSQP
-using SparseArrays
+# using IterativeSolvers
 
-using LinearMaps
-using IterativeSolvers
-
+using QuadProgSimplex
 
 const NSS = NonSmoothSolvers
 
@@ -46,18 +42,10 @@ abstract type NonSmoothOptimizer{Tf} <: Optimizer{Tf} end
 include("solver_types.jl")
 include("optimize.jl")
 
-include("nonsmooth_optimizers/nearestpointpolytope.jl")
-export NearestPointPolytope, NearestPointPolytopeState
-export nearest_point_polytope
-
-export quadprogsimplex, quadprogsimplex!
-
 include("nonsmooth_optimizers/subgradient.jl")
 include("nonsmooth_optimizers/gradientsampling.jl")
 include("nonsmooth_optimizers/ns_BFGS_linesearch.jl")
 include("nonsmooth_optimizers/ns_BFGS.jl")
-
-include("nonsmooth_optimizers/quadprogdirectionfinding.jl")
 
 export NSS
 

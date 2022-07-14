@@ -57,7 +57,7 @@ function initial_state(gs::GradientSampling{Tf}, initial_x::Vector{Tf}, pb) wher
         ∂gᵢs,
         ϵₖ = Tf(0.1),
         νₖ = Tf(0.1),
-        nppstate = initial_state(∂gᵢs),
+        nppstate = QPS.initial_state(∂gᵢs),
     )
 end
 
@@ -111,13 +111,8 @@ function update_iterate!(
     samplegradients!(∂gᵢs, pb, state.x, state.ϵₖ)
 
     ## 2. Find minimal norm element of convex hull at gradients of previous points.
-    # alphaOSQP = find_minimumnormelt_OSQP(∂gᵢs)
-    # gᵏ = ∂gᵢs * alphaOSQP
-    # alphaWolfe = nearest_point_polytope(∂gᵢs)
-    # gᵏ = ∂gᵢs * alphaWolfe
-
-    initialize_state!(state.nppstate, ∂gᵢs)
-    nearest_point_polytope!(state.nppstate, gs.nppopt, ∂gᵢs; show_trace = false)
+    QPS.initialize_state!(state.nppstate, ∂gᵢs)
+    QPS.nearest_point_polytope!(state.nppstate, gs.nppopt, ∂gᵢs; show_trace = false)
     gᵏ = state.nppstate.x
 
     gᵏ_norm = norm(gᵏ)

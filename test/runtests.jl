@@ -3,10 +3,7 @@ using Random
 using NonSmoothSolvers
 using NonSmoothProblems
 using LinearAlgebra
-using SparseArrays
-using JuMP, OSQP
 
-include("nearestpointpolytope.jl")
 
 function getpb(Tf)
     ε = 0.2
