@@ -2,49 +2,59 @@
     $TYPEDSIGNATURES
 
 Parameters:
-- `σ`: in (0, 0.5!], lower values enforce higher precision on each prox point approximation,
 - `ϵ`: overall precision required
 - `m`: sufficient decrease parameter
 - `μlow`: minimal prox parameter (μ is inverse of γ). Higher μ means smaller serious steps, but less null steps
 """
 Base.@kwdef struct VUbundle{Tf} <: NonSmoothOptimizer{Tf}
-    μlow::Tf = 0.5
-    σ::Tf = 0.1
-    ϵ::Tf = 1e-10
+    μlow::Tf = 0.05
+    ϵ::Tf = 1e-12
     m::Tf = 0.5
     Newton_accel::Bool = true
 end
 
-Base.@kwdef mutable struct VUbundleState{Tf} <: OptimizerState{Tf}
+"""
+    $TYPEDSIGNATURES
+
+Parameters:
+- `σ`: in (0, 0.5!], lower values enforce higher precision on each prox point approximation,
+"""
+mutable struct VUbundleState{Tf} <: OptimizerState{Tf}
     p::Vector{Tf}                                                       # point
     s::Vector{Tf}                                                       # minimal norm subgradient of the current ϵ subdifferential
     ϵ::Tf                                                               # ?
+    σ::Tf
     U::Matrix{Tf}                                                       # orthonormal basis of the approximation of the current U space
-    k::Int64 = 1                                                        # iteration counter
+    k::Int64                                                            # iteration counter
+    μ::Tf                                                               # step of proximal point
+    bundle::Vector{BundlePoint{Tf}}
     histys::Vector{NamedTuple{(:y, :s), Tuple{Vector{Tf}, Vector{Tf}}}} # history of BFGS steps and subgradients difference
 end
 
 function initial_state(::VUbundle{Tf}, initial_x::Vector{Tf}, pb) where Tf
     return VUbundleState(
-        p = initial_x,
-        s = ∂F_elt(pb, initial_x),
-        ϵ = Tf(1.0),
-        U = Matrix{Tf}(1.0I, length(initial_x), 1),
-        histys = NamedTuple{(:y, :s), Tuple{Vector{Tf}, Vector{Tf}}}[],
+        initial_x,
+        ∂F_elt(pb, initial_x),
+        Tf(1),
+        Tf(0.5),
+        Matrix{Tf}(1.0I, length(initial_x), 1),
+        1,
+        Tf(4),
+        BundlePoint{Tf}[],
+        NamedTuple{(:y, :s), Tuple{Vector{Tf}, Vector{Tf}}}[],
     )
 end
-
 
 #
 ### Printing
 #
 print_header(::VUbundle) = println("**** VUbundle algorithm")
 
-display_logs_header_post(gs::VUbundle) = print("ϵ̂        |ŝ|          #nullsteps     nₖ   ⟨dNewton, sₖ⟩ |dNewton|")
+display_logs_header_post(gs::VUbundle) = print("μ         ϵ̂        |ŝ|          #nullsteps     nₖ   ⟨dNewton, sₖ⟩ |dNewton|")
 
 function display_logs_post(os, gs::VUbundle)
     ai = os.additionalinfo
-    @printf "%.2e %.2e     %-2i             %-2i   % .1e  %.2e" ai.ϵ̂  ai.ŝnorm ai.nnullsteps ai.nₖ ai.dotsₖNewtonstep ai.Newtonsteplength
+    @printf "%.2e  %.2e %.2e     %-2i             %-2i   % .1e  %.2e" ai.μ ai.ϵ̂  ai.ŝnorm ai.nnullsteps ai.nₖ ai.dotsₖNewtonstep ai.Newtonsteplength
 end
 
 #
@@ -55,10 +65,15 @@ function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
     pₖ = state.p
     sₖ = state.s
     Uₖ = state.U
+    μₖ = state.μ
+    σₖ = Tf(inv(1+state.k^2))
 
     dotsₖNewtonstep = 0.0
     nₖ = size(Uₖ, 2)
     Newtonsteplength = 0.0
+    nullsteps = []
+
+    printstyled(F(pb, pₖ), "    - ", length(state.bundle), "\n", color = :red)
 
     xᶜₖ₊₁ = pₖ
     if VU.Newton_accel
@@ -75,25 +90,35 @@ function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
         sₖ₊₁ = ∂F_elt(pb, xᶜₖ₊₁)
         ys = (; y = Uₖ * Δu, s = sₖ₊₁ - sₖ)
         push!(state.histys, ys)
+        push!(nullsteps, xᶜₖ₊₁)
 
         dotsₖNewtonstep = dot(sₖ, Uₖ * Δu)
         Newtonsteplength = norm(state.histys[end].y)
     end
 
-    # μₖ₊₁ = VU.μlow # prox parameter
-    μₖ₊₁ = Tf(3.0) # prox parameter
-
     # Bundle subroutine at point xᶜₖ₊₁ (ie proximal step approximation)
-    ϵᶜₖ₊₁, pᶜₖ₊₁, sᶜₖ₊₁, Uᶜₖ₊₁, bundleinfo = bundlesubroutine(pb, μₖ₊₁, xᶜₖ₊₁, VU.σ, VU.ϵ)
+    ϵᶜₖ₊₁, pᶜₖ₊₁, sᶜₖ₊₁, Uᶜₖ₊₁, state.bundle, bundleinfo = bundlesubroutine(pb, μₖ, xᶜₖ₊₁, σₖ, VU.ϵ, state.bundle)
+    nullsteps = vcat(nullsteps, bundleinfo.phist)
 
-    if F(pb, pᶜₖ₊₁) ≤ F(pb, pₖ) - VU.m / (2μₖ₊₁) * norm(sᶜₖ₊₁)^2
+
+    printstyled(F(pb, pᶜₖ₊₁), "\n", color = :green)
+
+    if F(pb, pᶜₖ₊₁) ≤ F(pb, pₖ) - VU.m / (2μₖ) * norm(sᶜₖ₊₁)^2
         state.ϵ, state.p, state.s, state.U = ϵᶜₖ₊₁, pᶜₖ₊₁, sᶜₖ₊₁, Uᶜₖ₊₁
+
+        # Update prox parameter when there is descent step
+        Δx = pᶜₖ₊₁ - xᶜₖ₊₁
+        Δs = sᶜₖ₊₁ - ∂F_elt(pb, xᶜₖ₊₁)
+        # state.μ = inv(inv(μₖ) + dot(Δx, Δs) / norm(Δs)^2)
+        μup = inv(μₖ + dot(Δx, Δs) / norm(Δs)^2)
+        state.μ = min(10μₖ, max(VU.μlow, 0.1μₖ, μup))
     else
         # Linesearch on line pₖ → pᶜₖ₊₁ to get an xₖ₊₁ such that F(xₖ₊₁) ≤ F(pₖ)
         @warn "U-Newton + approximate prox failed to provide sufficient decrease"
         xₖ₊₁ = F(pb, pₖ) < F(pb, pᶜₖ₊₁) ? pₖ : pᶜₖ₊₁
 
-        state.ϵ, state.p, state.s, state.U, bundleinfo = bundlesubroutine(pb, μₖ₊₁, xₖ₊₁, VU.σ, VU.ϵ; printlev = 0)
+        state.ϵ, state.p, state.s, state.U, state.bundle, bundleinfo = bundlesubroutine(pb, μₖ, xₖ₊₁, σₖ, VU.ϵ, state.bundle; printlev = 0)
+        nullsteps = vcat(nullsteps, bundleinfo.phist)
     end
 
     iteration_status = iteration_completed
@@ -104,12 +129,14 @@ function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
     state.k += 1
 
     return (;
+            μ = state.μ,
             ϵ̂ = state.ϵ,
             ŝnorm = norm(state.s),
             bundleinfo.nnullsteps,
             dotsₖNewtonstep,
             nₖ,
             Newtonsteplength,
+            nullsteps,
     ), iteration_status
 end
 
