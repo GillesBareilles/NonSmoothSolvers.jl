@@ -42,7 +42,7 @@ function build_optimstate(
     optimstate_extensions = OrderedDict{Symbol,Function}(),
 )
     osextensions = NamedTuple(
-        indname => indcallback(optimizer, state) for
+        indname => indcallback(optimizer, state, optimstate_additionalinfo) for
         (indname, indcallback) in optimstate_extensions
     )
 
@@ -71,7 +71,7 @@ function build_initoptimstate(
         ncalls_F = 0,
         ncalls_∂F_elt = 0,
         additionalinfo = NamedTuple(
-            indname => indcallback(optimizer, state) for
+            indname => indcallback(optimizer, state, nothing) for
             (indname, indcallback) in optimstate_extensions
         ),
     )
