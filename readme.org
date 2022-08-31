@@ -12,9 +12,10 @@ Comments and suggestions are more than welcome, get in touch via mail or an issu
 
 *Setup* is as follows: in a julia REPL (default environment):
 #+begin_src julia
-]update
-]registry add https://github.com/GillesBareilles/OptimRegistry.jl
-]add NonSmoothSolvers
+using Pkg
+Pkg.update()
+Pkg.Registry.add(RegistrySpec(url = "https://github.com/GillesBareilles/OptimRegistry.jl"))
+Pkg.add("NonSmoothSolvers")
 #+end_src
 
 * Solvers
