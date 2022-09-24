@@ -30,6 +30,7 @@ jobs:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
       - uses: julia-actions/cache@v1
+      - run: ssh-keyscan codeberg.org:22 >> /home/runner/.ssh/known_hosts
       - run: |
           julia --project=NonSmoothSolvers -e '
           ENV["JULIA_PKG_USE_CLI_GIT"] = true
