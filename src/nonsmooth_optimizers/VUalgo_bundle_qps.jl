@@ -6,14 +6,23 @@ struct χOSQP <: AbstractχQPSolver end
 struct χCHP <: AbstractχQPSolver end
 struct χQPSimplex <: AbstractχQPSolver end
 
-function solve_χQP(pb, μ, x, bundle)
-    # α̂  = solve_χQP(μ, bundle, χOSQP())
-    α̂  = solve_χQP(μ, bundle, χQPSimplex())
+function solve_χQP(pb, μ, x::Vector{Tf}, bundle; checklevel = 0) where Tf
+    # α̂_OSQP, αOSQP_nullcoords = solve_χQP(μ, bundle, χOSQP())
+    α̂_Kiwiel, αKiw_nullcoords = solve_χQP(μ, bundle, χQPSimplex())
+    # if (checklevel > 0) && (norm(α̂_OSQP - α̂_Kiwiel) > 1e-14)
+    #     @warn "primal QPs have different sols here" norm(α̂_OSQP - α̂_Kiwiel)
 
-    p̂ = x - (1/μ) * sum(α̂[i] * bndlelt.gᵢ for (i, bndlelt) in enumerate(bundle))
-    r̂ = F(pb, x) + maximum(-bndl.eᵢ + dot(bndl.gᵢ, p̂ - x) for (i, bndl) in enumerate(bundle))
+    #     n = length(first(bundle).gᵢ)
+    #     P = zeros(Tf, n, length(bundle))
+    #     for (i, bundleelt) in enumerate(bundle)
+    #         P[:, i] = bundleelt.gᵢ
+    #     end
+    #     a = μ * [bundleelt.eᵢ for bundleelt in bundle]
+    #     @show QuadProgSimplex.checkoptimality(P, a, α̂_Kiwiel)
+    #     @show QuadProgSimplex.checkoptimality(P, a, α̂_OSQP)
+    # end
 
-    return r̂, p̂, α̂
+    return α̂_Kiwiel, αKiw_nullcoords
 end
 
 function solve_χQP(μ, bundle, ::χOSQP)
@@ -29,7 +38,7 @@ function solve_χQP(μ, bundle, ::χOSQP)
     α = @variable(model, α[1:nbundle])
 
     # Simplex constraints
-    @constraint(model, α .≥ 0)
+    poscstr = @constraint(model, α .≥ 0)
     @constraint(model, sum(α) == 1.)
 
     # Objective
@@ -41,8 +50,7 @@ function solve_χQP(μ, bundle, ::χOSQP)
         @warn "solve_χQP: subproblem was not solved to optimality" termination_status(model) primal_status(model) dual_status(model)
     end
 
-    α̂ = value.(α)
-    return α̂
+    return value.(α), dual.(poscstr) .> 1e-9
 end
 
 function solve_χQP(μ::Tf, bundle, ::χQPSimplex) where Tf
@@ -55,7 +63,7 @@ function solve_χQP(μ::Tf, bundle, ::χQPSimplex) where Tf
     b = μ * [bundleelt.eᵢ for bundleelt in bundle]
 
     α̂ = qpsimplex(P, b; check_optimality = false)
-    return α̂
+    return α̂, findall(t -> t == 0, α̂)
 end
 
 ################################################################################
@@ -65,13 +73,14 @@ end
 abstract type AbstractγQPSolver end
 struct γOSQP <: AbstractγQPSolver end
 struct γNPP <: AbstractγQPSolver end
+struct γQPSimplex <: AbstractγQPSolver end
 
 function solve_γQP(activebundle)
     # α̂  = solve_γQP(activebundle, γOSQP())
-    α̂  = solve_γQP(activebundle, γNPP())
-    ŝ = sum(α̂[i] * bndlelt.gᵢ for (i, bndlelt) in enumerate(activebundle))
+    # ᾱ  = solve_γQP(activebundle, γNPP())                     # nearest point polytope, Wolfe
+    ᾱ , α_nullcoords = solve_γQP(activebundle, γQPSimplex()) # Kiwiel 86
 
-    return ŝ, α̂
+    return ᾱ, α_nullcoords
 end
 
 function solve_γQP(activebundle, ::γOSQP)
@@ -98,6 +107,20 @@ function solve_γQP(activebundle, ::γOSQP)
     end
     JuMP.optimize!(model)
     return α̂ = value.(α)
+end
+
+function solve_γQP(bundle::Vector{BundlePoint{Tf}}, ::γQPSimplex) where Tf
+    nbundle = length(bundle)
+    n = length(first(bundle).gᵢ)
+    P = zeros(Tf, n, nbundle)
+    for (i, bundleelt) in enumerate(bundle)
+        P[:, i] = bundleelt.gᵢ
+    end
+    b = zeros(Tf, length(bundle))
+
+    α̂ = qpsimplex(P, b; check_optimality = false)
+    findnull(t) = t == 0
+    return α̂, findnull.(α̂)
 end
 
 function solve_γQP(activebundle, ::γNPP)

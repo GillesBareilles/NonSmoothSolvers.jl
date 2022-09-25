@@ -51,6 +51,7 @@ include("nonsmooth_optimizers/gradientsampling.jl")
 include("nonsmooth_optimizers/ns_BFGS_linesearch.jl")
 include("nonsmooth_optimizers/ns_BFGS.jl")
 
+include("nonsmooth_optimizers/VUalgo_utils.jl")
 include("nonsmooth_optimizers/VUalgo_bundle_qps.jl")
 include("nonsmooth_optimizers/VUalgo_bundle.jl")
 include("nonsmooth_optimizers/VUalgo.jl")

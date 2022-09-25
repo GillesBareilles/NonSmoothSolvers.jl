@@ -2,42 +2,44 @@ using NonSmoothSolvers
 using NonSmoothProblems
 using LinearAlgebra
 using PlotsOptim
+using DataStructures
 
 function main()
-    # pb = Halfhalf()
-    # x = 1 .+ zeros(pb.n)
+    pb = Halfhalf()
+    x = 6 .+ zeros(pb.n)
 
     # @show F(pb, x)
 
-    # o = VUbundle(Newton_accel = true)
-    # optparams = OptimizerParams(iterations_limit=20, trace_length=20)
-    # sol, tr = optimize!(pb, o, x; optparams)
+    o = VUbundle(Newton_accel = true)
+    optparams = OptimizerParams(iterations_limit=20, trace_length=20)
+    sol, tr = optimize!(pb, o, x; optparams)
 
     # @show sol
-    function getnullsteps(o, os, osaddinfo)
-        return isnothing(osaddinfo) ? [] : osaddinfo.nullsteps
-    end
-    optimstate_extensions = OrderedDict{Symbol,Function}(:nsteps => getnullsteps)
+    # function getnullsteps(o, os, osaddinfo)
+    #     return isnothing(osaddinfo) ? [] : osaddinfo.nullsteps
+    # end
+    # optimstate_extensions = OrderedDict{Symbol,Function}(:nsteps => getnullsteps)
 
     # println("\n\n\n")
     pb = MaxQuadBGLS()
     x = ones(10)
 
     o = VUbundle(Newton_accel = true)
-    optparams = OptimizerParams(iterations_limit=20, trace_length=20)
-    sol, tr = optimize!(pb, o, x; optparams, optimstate_extensions)
+    optparams = OptimizerParams(iterations_limit=35, trace_length=35)
+    sol, tr = optimize!(pb, o, x; optparams)
 
 
     # Plot...
-    Fhist = [ F(pb, p) for os in tr for p in os.additionalinfo.nsteps ]
-    @show length(Fhist)
-    Fopt = min(minimum(Fhist), -8.4140833459641462e-01)
+    # Fhist = [ F(pb, p) for os in tr for p in os.additionalinfo.nsteps ]
+    # acthist = [ argmax(NSP.g(pb, p)) for os in tr for p in os.additionalinfo.nsteps ]
+    # display(hcat(0:length(Fhist)-1, Fhist, acthist))
+    Fopt = prevfloat(-8.4140833459641462e-01)
 
     optimdata = OrderedDict(
-        "VU" => Fhist
+        "VU" => tr
     )
-    getabsc_time(optimizer, trace) = [k for k in 1:length(trace)]
-    getord_subopt(optimizer, trace) = [Fx - Fopt for Fx in trace]
+    getabsc_time(optimizer, trace) = [os.it for os in (trace)]
+    getord_subopt(optimizer, trace) = [os.Fx - Fopt for os in trace]
 
     fig = plot_curves(
         optimdata,
@@ -49,7 +51,7 @@ function main()
         includelegend=false,
     )
     savefig(fig, joinpath(".", "VU" * "_time_subopt"))
-    return 
+    return
 
     # for tr
     # tr[2].additionalinfo.nsteps

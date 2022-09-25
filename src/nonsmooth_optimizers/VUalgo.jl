@@ -50,7 +50,7 @@ end
 #
 print_header(::VUbundle) = println("**** VUbundle algorithm")
 
-display_logs_header_post(gs::VUbundle) = print("μ         ϵ̂        |ŝ|          #nullsteps     nₖ   ⟨dNewton, sₖ⟩ |dNewton|")
+display_logs_header_post(gs::VUbundle) = print("μ         ϵ̂       | ŝ|          #nullsteps     nₖ   ⟨dᴺ, sₖ⟩  |dᴺ|")
 
 function display_logs_post(os, gs::VUbundle)
     ai = os.additionalinfo
@@ -61,7 +61,7 @@ end
 ### VUbundle method
 #
 function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
-    ϵₖ = state.ϵ
+    # ϵₖ = state.ϵ
     pₖ = state.p
     sₖ = state.s
     Uₖ = state.U
@@ -73,8 +73,6 @@ function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
     Newtonsteplength = 0.0
     nullsteps = []
 
-    printstyled(F(pb, pₖ), "    - ", length(state.bundle), "\n", color = :red)
-
     xᶜₖ₊₁ = pₖ
     if VU.Newton_accel
         # Computing U-Hessian estimate
@@ -85,7 +83,9 @@ function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
 
         # Solving Newton equation
         Δu = -Hₖ * Uₖ' * sₖ
-        xᶜₖ₊₁ = pₖ + Uₖ * Δu
+
+        dᴺ = Uₖ * Δu
+        xᶜₖ₊₁ = pₖ .+ dᴺ
 
         sₖ₊₁ = ∂F_elt(pb, xᶜₖ₊₁)
         ys = (; y = Uₖ * Δu, s = sₖ₊₁ - sₖ)
@@ -98,19 +98,15 @@ function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
 
     # Bundle subroutine at point xᶜₖ₊₁ (ie proximal step approximation)
     ϵᶜₖ₊₁, pᶜₖ₊₁, sᶜₖ₊₁, Uᶜₖ₊₁, state.bundle, bundleinfo = bundlesubroutine(pb, μₖ, xᶜₖ₊₁, σₖ, VU.ϵ, state.bundle)
-    nullsteps = vcat(nullsteps, bundleinfo.phist)
-
-
-    printstyled(F(pb, pᶜₖ₊₁), "\n", color = :green)
 
     if F(pb, pᶜₖ₊₁) ≤ F(pb, pₖ) - VU.m / (2μₖ) * norm(sᶜₖ₊₁)^2
         state.ϵ, state.p, state.s, state.U = ϵᶜₖ₊₁, pᶜₖ₊₁, sᶜₖ₊₁, Uᶜₖ₊₁
 
-        # Update prox parameter when there is descent step
+        # NOTE: Update prox parameter between serious steps. See eq. 10.25, p. 152
+        # Bonnans, Gilbert, Lemarechal, Sagastizábal (2006) Numerical Optimization: Theoretical and Practical Aspects, Springer-Verlag.
         Δx = pᶜₖ₊₁ - xᶜₖ₊₁
         Δs = sᶜₖ₊₁ - ∂F_elt(pb, xᶜₖ₊₁)
-        # state.μ = inv(inv(μₖ) + dot(Δx, Δs) / norm(Δs)^2)
-        μup = inv(μₖ + dot(Δx, Δs) / norm(Δs)^2)
+        μup = inv(1/μₖ + dot(Δx, Δs) / norm(Δs)^2)
         state.μ = min(10μₖ, max(VU.μlow, 0.1μₖ, μup))
     else
         # Linesearch on line pₖ → pᶜₖ₊₁ to get an xₖ₊₁ such that F(xₖ₊₁) ≤ F(pₖ)
@@ -136,7 +132,6 @@ function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
             dotsₖNewtonstep,
             nₖ,
             Newtonsteplength,
-            nullsteps,
     ), iteration_status
 end
 
