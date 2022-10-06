@@ -15,11 +15,15 @@ using DocStringExtensions
 
 using QuadProgSimplex
 
+using LinearOperators
+
 const NSS = NonSmoothSolvers
 
 import TimerOutputs: enable_debug_timings, disable_debug_timings
 
 export enable_debug_timings, disable_debug_timings
+
+using JuMP, OSQP
 
 #
 ### solvers
@@ -41,9 +45,16 @@ include("solver_types.jl")
 include("optimize.jl")
 
 include("nonsmooth_optimizers/subgradient.jl")
+
 include("nonsmooth_optimizers/gradientsampling.jl")
+
 include("nonsmooth_optimizers/ns_BFGS_linesearch.jl")
 include("nonsmooth_optimizers/ns_BFGS.jl")
+
+include("nonsmooth_optimizers/VUalgo_utils.jl")
+include("nonsmooth_optimizers/VUalgo_bundle_qps.jl")
+include("nonsmooth_optimizers/VUalgo_bundle.jl")
+include("nonsmooth_optimizers/VUalgo.jl")
 
 export NSS
 
@@ -53,5 +64,7 @@ export OptimizerParams
 export Subgradient
 export GradientSampling
 export NSBFGS
+
+export VUbundle
 
 end # module

@@ -42,7 +42,7 @@ function build_optimstate(
     optimstate_extensions = OrderedDict{Symbol,Function}(),
 )
     osextensions = NamedTuple(
-        indname => indcallback(optimizer, state) for
+        indname => indcallback(optimizer, state, optimstate_additionalinfo) for
         (indname, indcallback) in optimstate_extensions
     )
 
@@ -71,7 +71,7 @@ function build_initoptimstate(
         ncalls_F = 0,
         ncalls_∂F_elt = 0,
         additionalinfo = NamedTuple(
-            indname => indcallback(optimizer, state) for
+            indname => indcallback(optimizer, state, nothing) for
             (indname, indcallback) in optimstate_extensions
         ),
     )
@@ -128,6 +128,7 @@ function optimize!(
     stopped = false
     time_count = 0.0
     stopped_by_updatefailure = false
+    stopped_by_iterationpbsolved = false
     stopped_by_time_limit = false
 
     x_prev = copy(initial_x)
@@ -184,6 +185,7 @@ function optimize!(
         end
 
         stopped_by_updatefailure = (iterationstatus == iteration_failed)
+        stopped_by_iterationpbsolved = (iterationstatus == problem_solved)
         stopped_by_time_limit = time_count > optparams.time_limit
         stopped = stopped_by_time_limit || stopped_by_updatefailure
         x_prev .= get_minimizer_candidate(state)
@@ -199,6 +201,7 @@ function optimize!(
         initial_x,
         stopped_by_updatefailure,
         stopped_by_time_limit,
+        stopped_by_iterationpbsolved,
         iteration,
         time_count,
     )
@@ -220,6 +223,7 @@ function display_optimizerstatus(
     initial_x,
     stopped_by_updatefailure,
     stopped_by_time_limit,
+    stopped_by_iterationpbsolved,
     iteration,
     time_count,
 ) where {Tf,To<:NonSmoothOptimizer{Tf}}
@@ -228,6 +232,7 @@ function display_optimizerstatus(
 * status:
     initial point value:    $(F(pb, initial_x))
     final point value:      $(F(pb, x_final))
+    optimality condition:   $(stopped_by_iterationpbsolved)
     stopped by it failure:  $(stopped_by_updatefailure)
     stopped by time:        $(stopped_by_time_limit)
 * Counters:
