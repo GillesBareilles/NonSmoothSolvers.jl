@@ -110,7 +110,11 @@ function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
         # Bonnans, Gilbert, Lemarechal, Sagastizábal (2006) Numerical Optimization: Theoretical and Practical Aspects, Springer-Verlag.
         Δx = pᶜₖ₊₁ - xᶜₖ₊₁
         Δs = sᶜₖ₊₁ - ∂F_elt(pb, xᶜₖ₊₁)
+
         μup = inv(1/μₖ + dot(Δx, Δs) / norm(Δs)^2)
+        if norm(Δs) < 1e2 * eps(Tf)                 # locally linear functions incur Δs = 0, causing a NaN value.
+            μup = Tf(0)
+        end
         state.μ = min(10μₖ, max(VU.μlow, 0.1μₖ, μup))
 
         nullsteps = vcat(nullsteps, bundleinfo.phist) # log nullsteps of prox-bundle step
