@@ -21,13 +21,10 @@ display_logs_common(os, o::To) where {To<:NonSmoothOptimizer} =
 display_logs_post(os, o) = nothing
 
 function display_logs(os::OptimizationState, optimizer)
-    print("\033[0m")
-
     display_logs_pre(os, optimizer)
     display_logs_common(os, optimizer)
     display_logs_post(os, optimizer)
 
-    print("\033[0m")
     println()
 end
 

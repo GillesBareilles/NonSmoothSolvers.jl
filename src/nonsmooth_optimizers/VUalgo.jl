@@ -48,7 +48,11 @@ end
 #
 ### Printing
 #
-print_header(::VUbundle) = println("**** VUbundle algorithm")
+function print_header(o::VUbundle)
+    println("**** VUbundle algorithm")
+    println(" + Newton accel: ", o.Newton_accel)
+    return
+end
 
 display_logs_header_post(gs::VUbundle) = print("μ         ϵ̂       | ŝ|          #nullsteps     nₖ   ⟨dᴺ, sₖ⟩  |dᴺ|")
 
@@ -108,13 +112,15 @@ function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
         Δs = sᶜₖ₊₁ - ∂F_elt(pb, xᶜₖ₊₁)
         μup = inv(1/μₖ + dot(Δx, Δs) / norm(Δs)^2)
         state.μ = min(10μₖ, max(VU.μlow, 0.1μₖ, μup))
+
+        nullsteps = vcat(nullsteps, bundleinfo.phist) # log nullsteps of prox-bundle step
     else
         # Linesearch on line pₖ → pᶜₖ₊₁ to get an xₖ₊₁ such that F(xₖ₊₁) ≤ F(pₖ)
         @warn "U-Newton + approximate prox failed to provide sufficient decrease"
         xₖ₊₁ = F(pb, pₖ) < F(pb, pᶜₖ₊₁) ? pₖ : pᶜₖ₊₁
 
         state.ϵ, state.p, state.s, state.U, state.bundle, bundleinfo = bundlesubroutine(pb, μₖ, xₖ₊₁, σₖ, VU.ϵ, state.bundle; printlev = 0)
-        nullsteps = vcat(nullsteps, bundleinfo.phist)
+        nullsteps = vcat(nullsteps, bundleinfo.phist) # log nullsteps of correction prox-bundle step
     end
 
     iteration_status = iteration_completed
@@ -132,6 +138,7 @@ function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
             dotsₖNewtonstep,
             nₖ,
             Newtonsteplength,
+            nullsteps
     ), iteration_status
 end
 

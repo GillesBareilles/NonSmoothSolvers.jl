@@ -6,9 +6,12 @@ struct χOSQP <: AbstractχQPSolver end
 struct χCHP <: AbstractχQPSolver end
 struct χQPSimplex <: AbstractχQPSolver end
 
-function solve_χQP(pb, μ, x::Vector{Tf}, bundle; checklevel = 0) where Tf
+function solve_χQP(pb, μ, x::Vector{Tf}, bundle) where Tf
     # α̂_OSQP, αOSQP_nullcoords = solve_χQP(μ, bundle, χOSQP())
+    # return α̂_OSQP, αOSQP_nullcoords
     α̂_Kiwiel, αKiw_nullcoords = solve_χQP(μ, bundle, χQPSimplex())
+    return α̂_Kiwiel, αKiw_nullcoords
+
     # if (checklevel > 0) && (norm(α̂_OSQP - α̂_Kiwiel) > 1e-14)
     #     @warn "primal QPs have different sols here" norm(α̂_OSQP - α̂_Kiwiel)
 
@@ -69,7 +72,6 @@ end
 ################################################################################
 ## Dual bundle step
 ################################################################################
-
 abstract type AbstractγQPSolver end
 struct γOSQP <: AbstractγQPSolver end
 struct γNPP <: AbstractγQPSolver end

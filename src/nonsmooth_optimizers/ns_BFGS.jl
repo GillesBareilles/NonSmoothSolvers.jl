@@ -38,7 +38,7 @@ end
 #
 ### NSBFGS method
 #
-function update_iterate!(state, bfgs::NSBFGS, pb)
+function update_iterate!(state, bfgs::NSBFGS{Tf}, pb) where Tf
     iteration_status = iteration_completed
 
     dₖ = similar(state.∇f)
@@ -68,7 +68,7 @@ function update_iterate!(state, bfgs::NSBFGS, pb)
 
     dot_yₖ_sₖ = dot(yₖ, sₖ)
 
-    if dot_yₖ_sₖ > 0
+    if dot_yₖ_sₖ > 1e1 * eps(Tf)
         # if o.initial_rescale || o.iterative_rescale
         #     o.Hₖ *= dot_yₖ_sₖ / dot(o.Hₖ*yₖ, yₖ)
         #     o.initial_rescale = false

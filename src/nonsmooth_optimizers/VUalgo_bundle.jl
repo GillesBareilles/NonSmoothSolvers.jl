@@ -30,7 +30,7 @@ function bundlesubroutine(pb, μ::Tf, x::Vector{Tf}, σ::Tf, ϵglobal, bundle; p
     Fx = F(pb, x)
 
     (printlev>0) && @printf "it F(p̂)       |B| |Bact|          |ŝ|        |ϵ̂|  tol(μ, σ)\n"
-    it = 0
+    it = 1
     while true
         ## FIXME bundle contains info on x?
         if findfirst(e -> norm(e.yᵢ - x) < 1e-14, bundle) === nothing
