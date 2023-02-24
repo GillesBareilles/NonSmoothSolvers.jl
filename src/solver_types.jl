@@ -14,7 +14,7 @@ Base.@kwdef struct OptimizationState{Tf,Ti}
     additionalinfo::Ti = NamedTuple()
 end
 
-const OptimizationTrace{T} = Vector{OptimizationState{T}}
+# const OptimizationTrace{Tf,Ti} = Vector{OptimizationState{Tf,Ti}}
 
 """
     OptimizerParams

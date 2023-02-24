@@ -11,7 +11,7 @@ function updatebundle!(bundle, pb, x)
         e = Fx - belt.fᵢ - dot(belt.gᵢ, x - belt.yᵢ)
         bundle[i] = BundlePoint(belt.fᵢ, belt.gᵢ, e, belt.yᵢ)
     end
-    return
+    return nothing
 end
 
 function bundlepoint(pb, yᵢ, x)

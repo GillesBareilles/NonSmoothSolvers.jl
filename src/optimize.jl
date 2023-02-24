@@ -176,8 +176,7 @@ function optimize!(
         @timeit_debug "CV check" begin
             converged = (iterationstatus == problem_solved)
             for cvchecker in optparams.cvcheckers
-                converged =
-                    converged || has_converged(cvchecker, pb, optimizer, optimizationstate)
+                converged = converged || has_converged(cvchecker, pb, optimizer, optimizationstate)
             end
         end
 

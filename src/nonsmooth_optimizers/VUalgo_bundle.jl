@@ -23,7 +23,8 @@ function bundlesubroutine(pb, μ::Tf, x::Vector{Tf}, σ::Tf, ϵglobal, bundle; p
 
     ϵ̂ = Inf
     p̂ = similar(x)
-    p̂prev = copy(p̂)
+    p̂prev = similar(x)
+    p̂prev .= p̂
     ŝ = similar(x)
 
     phist = []
@@ -43,9 +44,13 @@ function bundlesubroutine(pb, μ::Tf, x::Vector{Tf}, σ::Tf, ϵglobal, bundle; p
         p̂ = x - (1/μ) * ĝ
 
         # TODO All remaining (active) linear models should be equal at p̂
-        r̂ = Fx + maximum(-bndl.eᵢ + dot(bndl.gᵢ, p̂ - x) for (i, bndl) in enumerate(bundle)) # model value
+        # r̂ = Fx + maximum(-bndl.eᵢ + dot(bndl.gᵢ, p̂ - x) for (i, bndl) in enumerate(bundle)) # model value
+        bndl = first(bundle)
+        test = -bndl.eᵢ + dot(bndl.gᵢ, p̂ - x)
+
+        r̂ = φ(bundle, pb, p̂, x, Fx)
         ϵ̂ = F(pb, p̂) - r̂                                                                   # model accuracy
-        (testlevel > 0) && @assert isapprox(r̂, φ(bundle, pb, p̂, x, Fx); rtol = 1e-2)
+        # (testlevel > 0) && @assert isapprox(r̂, φ(bundle, pb, p̂, x, Fx); rtol = 1e-2)
 
         ## NOTE deleting non-active entries
         deleteat!(bundle, α_nullcoords)
@@ -54,7 +59,11 @@ function bundlesubroutine(pb, μ::Tf, x::Vector{Tf}, σ::Tf, ϵglobal, bundle; p
 
         ## NOTE: γ-QP
         ᾱ, ᾱ_nullcoords = solve_γQP(bundle)
-        ŝ = sum(ᾱ[i] * bndlelt.gᵢ for (i, bndlelt) in enumerate(bundle))
+        # ŝ = sum(ᾱ[i] * bndlelt.gᵢ for (i, bndlelt) in enumerate(bundle))
+        ŝ = zeros(size(x))
+        for (i, bndlelt) in enumerate(bundle)
+            ŝ .+= ᾱ[i] .* bndlelt.gᵢ
+        end
 
         push!(phist, p̂)
         p̂prev = copy(p̂)
@@ -75,7 +84,10 @@ function bundlesubroutine(pb, μ::Tf, x::Vector{Tf}, σ::Tf, ϵglobal, bundle; p
         end
 
         it += 1
-        (it > 500) && throw(error("too much null steps, exiting to serious step"))
+        if it > 500
+            @error "too much null steps, exiting to serious step"
+            throw(ErrorException)
+        end
     end
 
     Û = get_Uorthonormalbasis(bundle, ᾱ, ᾱ_nullcoords)
