@@ -122,7 +122,7 @@ function solve_γQP(bundle::Vector{BundlePoint{Tf}}, ::γQPSimplex) where Tf
 
     α̂ = qpsimplex(P, b; check_optimality = false)
     findnull(t) = t == 0
-    return α̂::Tf, findnull.(α̂)::Vector{Tf}
+    return α̂::Vector{Tf}, findnull.(α̂)::BitVector
 end
 
 function solve_γQP(activebundle, ::γNPP)
