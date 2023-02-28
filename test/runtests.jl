@@ -4,6 +4,7 @@ using NonSmoothSolvers
 using NonSmoothProblems
 using LinearAlgebra
 
+include("VU_bundlesubproblem.jl")
 
 function getpb(Tf)
     ε = 0.2

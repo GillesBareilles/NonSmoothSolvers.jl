@@ -57,13 +57,13 @@ function solve_χQP(μ, bundle, ::χOSQP)
 end
 
 function solve_χQP(μ::Tf, bundle, ::χQPSimplex) where Tf
-    nbundle = length(bundle)
-    n = length(first(bundle).gᵢ)
+    nbundle = length(bundle.bpts)
+    n = length(first(bundle.bpts).gᵢ)
     P = zeros(Tf, n, nbundle)
-    for (i, bundleelt) in enumerate(bundle)
+    for (i, bundleelt) in enumerate(bundle.bpts)
         P[:, i] = bundleelt.gᵢ
     end
-    b = μ * [bundleelt.eᵢ for bundleelt in bundle]
+    b = μ * [bundleelt.eᵢ for bundleelt in bundle.bpts]
 
     α̂ = qpsimplex(P, b; check_optimality = false)
     return α̂, findall(t -> t == 0, α̂)
@@ -111,14 +111,14 @@ function solve_γQP(activebundle, ::γOSQP)
     return α̂ = value.(α)
 end
 
-function solve_γQP(bundle::Vector{BundlePoint{Tf}}, ::γQPSimplex) where Tf
-    nbundle = length(bundle)
-    n = length(first(bundle).gᵢ)
+function solve_γQP(bundle::Bundle{Tf}, ::γQPSimplex) where Tf
+    nbundle = length(bundle.bpts)
+    n = length(first(bundle.bpts).gᵢ)
     P = zeros(Tf, n, nbundle)
-    for (i, bundleelt) in enumerate(bundle)
+    for (i, bundleelt) in enumerate(bundle.bpts)
         P[:, i] = bundleelt.gᵢ
     end
-    b = zeros(Tf, length(bundle))
+    b = zeros(Tf, length(bundle.bpts))
 
     α̂ = qpsimplex(P, b; check_optimality = false)
     findnull(t) = t == 0
