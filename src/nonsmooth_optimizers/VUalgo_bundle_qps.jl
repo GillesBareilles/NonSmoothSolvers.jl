@@ -64,6 +64,8 @@ function solve_χQP(μ::Tf, bundle, ::χQPSimplex) where Tf
         P[:, i] = bundleelt.gᵢ
     end
     b = μ * [bundleelt.eᵢ for bundleelt in bundle.bpts]
+    @show findfirst(isnan, b)
+    display(bundle)
 
     α̂ = qpsimplex(P, b; check_optimality = false)
     return α̂, findall(t -> t == 0, α̂)

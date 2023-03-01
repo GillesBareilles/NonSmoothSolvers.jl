@@ -34,6 +34,8 @@ function bundlesubroutine!(bundle::Bundle{Tf}, pb, μ::Tf, x::Vector{Tf}, σ::Tf
     phist = []
     Fx = F(pb, x)
 
+    subroutinestatus = :Unfinished
+
     (printlev>0) && @printf "it F(p̂)       |B| |Bact|          |ŝ|        |ϵ̂|  tol(μ, σ)\n"
     it = 1
     while true
@@ -50,6 +52,10 @@ function bundlesubroutine!(bundle::Bundle{Tf}, pb, μ::Tf, x::Vector{Tf}, σ::Tf
             ĝ .+= α̂[i] * bundle.bpts[i].gᵢ
         end
         p̂ = x - (1/μ) * ĝ # primal = phat
+
+        @show α̂_nonullcoords, ᾱ_nullcoords, α̂
+
+        @assert !isempty(α̂_nonullcoords)
         ϵ = sum(α̂[i] * bundle.bpts[i].eᵢ for i in α̂_nonullcoords)
         Δ = ϵ + 1/(2μ) * norm(ĝ)^2
         Δv = ϵ + 1/(μ) * norm(ĝ)^2
@@ -95,8 +101,10 @@ function bundlesubroutine!(bundle::Bundle{Tf}, pb, μ::Tf, x::Vector{Tf}, σ::Tf
         ## NOTE: stopping criterion for global optimal point
         isglobalopt = (ϵ̂ + haveinv * norm(ŝ)^2 ≤ ϵglobal^2) || max(norm(ŝ)^2, μ/σ*ϵ̂) < max(1e-9, ϵglobal^2)
         if isglobalopt
-            @info "found optimal point" F(pb, p̂)
-            @error "missing part of code here..." # TODO ask Claudia
+            @info "Found optimal point: " F(pb, p̂)
+            @error "missing part of code here (solution polish?)" # TODO ask Claudia
+            subroutinestatus = :ApproxMinimizerFound
+            break
         end
 
         ## NOTE test to exit null steps
@@ -106,6 +114,7 @@ function bundlesubroutine!(bundle::Bundle{Tf}, pb, μ::Tf, x::Vector{Tf}, σ::Tf
                 @warn "Serious step does not provide theoretical sufficient decrease" F(pb, p̂) - F(pb, x) -inv(2μ) * norm(ĝ)^2
                 throw(ErrorException("In null step sequence, weird behavior."))
             end
+            subroutinestatus = :SeriousStepFound
             break
         end
         if  ϵ̂ < 1e2*eps(Tf) && norm(ŝ) < 1e2*eps(Tf)
@@ -117,7 +126,7 @@ function bundlesubroutine!(bundle::Bundle{Tf}, pb, μ::Tf, x::Vector{Tf}, σ::Tf
         it += 1
         if it > 500
             @error "too much null steps, exiting to serious step"
-            throw(ErrorException)
+            throw(ErrorException("Too much steps in bundle procedure"))
         end
     end
 
@@ -129,7 +138,7 @@ function bundlesubroutine!(bundle::Bundle{Tf}, pb, μ::Tf, x::Vector{Tf}, σ::Tf
     @show ϵ̂
     @show Û
     printstyled(" === Bundle subroutine computation end\n", color = :blue)
-    return ϵ̂, p̂, ŝ, Û, (; nnullsteps = it, phist)
+    return ϵ̂, p̂, ŝ, Û, (; nnullsteps = it, phist, subroutinestatus)
 end
 
 

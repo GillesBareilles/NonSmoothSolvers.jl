@@ -1,21 +1,20 @@
-function qNewtonupdate(pₖ, pₖ₋₁, sₖ, sₖ₋₁, U, Hin, k, curvmin, ν, νlow, μ, kase)
+function qNewtonupdate(pₖ, pₖ₋₁, sₖ, sₖ₋₁, U, Hin, k, curvmin, ν, νlow, μ, kase; printlev = 0)
     n = length(pₖ)
 
-
-    printstyled(" === qNewton step computation === \n", color = :yellow)
-    @show pₖ
-    @show pₖ₋₁
-    @show sₖ
-    @show sₖ₋₁
-    @show U
-    @show Hin
-    @show k
-    @show curvmin
-    @show ν
-    @show νlow
-    @show μ
-    @show kase
-    printstyled(" ============================== \n", color = :yellow)
+    printlev > 0 && printstyled(" === qNewton step computation === \n", color = :yellow)
+    printlev > 1 && @show pₖ
+    printlev > 1 && @show pₖ₋₁
+    printlev > 1 && @show sₖ
+    printlev > 1 && @show sₖ₋₁
+    printlev > 1 && @show U
+    printlev > 1 && @show Hin
+    printlev > 1 && @show k
+    printlev > 1 && @show curvmin
+    printlev > 1 && @show ν
+    printlev > 1 && @show νlow
+    printlev > 1 && @show μ
+    printlev > 1 && @show kase
+    printlev > 0 && printstyled(" ============================== \n", color = :yellow)
 
     # TODO H in place
     H = copy(Hin)
@@ -68,13 +67,13 @@ function qNewtonupdate(pₖ, pₖ₋₁, sₖ, sₖ₋₁, U, Hin, k, curvmin, �
     du=-U*(Hreduced\(U'*sₖ))
 
 
-    printstyled(" ============================== \n", color = :yellow)
-    @show du
-    @show haveinv
-    @show hmin
-    @show H
-    @show kase
-    printstyled(" === qNewton step computation end \n", color = :yellow)
+    printlev > 0 && printstyled(" ============================== \n", color = :yellow)
+    printlev > 1 && @show du
+    printlev > 1 && @show haveinv
+    printlev > 1 && @show hmin
+    printlev > 1 && @show H
+    printlev > 1 && @show kase
+    printlev > 0 && printstyled(" === qNewton step computation end \n", color = :yellow)
 
     return du, hmin, haveinv, H, kase
 end

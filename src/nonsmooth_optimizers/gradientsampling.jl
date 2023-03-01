@@ -36,9 +36,11 @@ end
 #     )
 # end
 
-GradientSampling(initial_x::AbstractVector{Tf}) where Tf = GradientSampling{Tf}(
+GradientSampling(initial_x::AbstractVector{Tf}; ϵ_opt=1e-6, ν_opt=1e-6) where Tf = GradientSampling{Tf}(
     m = length(initial_x) * 2,
     nppopt = NearestPointPolytope{Tf}(),
+    ϵ_opt = ϵ_opt,
+    ν_opt = ν_opt,
 )
 
 Base.@kwdef mutable struct GradientSamplingState{Tf} <: OptimizerState{Tf}
