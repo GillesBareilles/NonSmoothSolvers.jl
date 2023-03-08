@@ -23,7 +23,6 @@ function bundlesubroutine!(bundle::Bundle{Tf}, pb, μ::Tf, x::Vector{Tf}, σ::Tf
     p̂prev .= p̂
     ŝ = similar(x)
 
-    phist = []
     Fx = F(pb, x)
 
     subroutinestatus = :Unfinished
@@ -85,7 +84,6 @@ function bundlesubroutine!(bundle::Bundle{Tf}, pb, μ::Tf, x::Vector{Tf}, σ::Tf
 
         printlev > 3 && @show ŝ
 
-        push!(phist, p̂)
         p̂prev = copy(p̂)
 
         (testlevel > 0) && check_bundle(pb, bundle, x, Fx)
@@ -131,7 +129,7 @@ function bundlesubroutine!(bundle::Bundle{Tf}, pb, μ::Tf, x::Vector{Tf}, σ::Tf
     (printlev > 2) && @show ϵ̂
     (printlev > 2) && @show Û
     (printlev > 2) && printstyled(" === Bundle subroutine computation end\n", color = :blue)
-    return ϵ̂, p̂, Fp̂, gp̂, ŝ, Û, (; nnullsteps = it, phist, subroutinestatus)
+    return ϵ̂, p̂, Fp̂, gp̂, ŝ, Û, (; nnullsteps = it, subroutinestatus)
 end
 
 function get_Uorthonormalbasis(activebundle::Bundle{Tf}, α̂minnormelt, α_nullcoords) where Tf

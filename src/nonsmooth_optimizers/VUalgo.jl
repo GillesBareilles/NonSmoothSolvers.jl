@@ -81,11 +81,11 @@ function print_header(o::VUbundle)
     return
 end
 
-display_logs_header_post(gs::VUbundle) = print("μ         ϵ̂       | ŝ|          #nullsteps     nₖ   ⟨dᴺ, sₖ⟩  |dᴺ|")
+display_logs_header_post(gs::VUbundle) = print("μ         ϵ̂       | ŝ|          #bboxcalls     nₖ   ⟨dᴺ, sₖ⟩  |dᴺ|")
 
 function display_logs_post(os, gs::VUbundle)
     ai = os.additionalinfo
-    @printf "%.2e  %.2e %.2e     %-2i             %-2i   % .1e  %.2e" ai.μ ai.ϵ̂  ai.ŝnorm ai.nnullsteps ai.nₖ ai.dotsₖNewtonstep ai.Newtonsteplength
+    @printf "%.2e  %.2e %.2e     %-2i             %-2i   % .1e  %.2e" ai.μ ai.ϵ̂  ai.ŝnorm ai.bboxcalls ai.nₖ ai.dotsₖNewtonstep ai.Newtonsteplength
 end
 
 
@@ -132,7 +132,6 @@ function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
     nₖ = size(Uₖ, 2)
     ν = nₖ
     Newtonsteplength = 0.0
-    nullsteps = []
     sclst = -1.
     sscale = -1.
     haveinv = -1.
@@ -188,17 +187,18 @@ function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
         ## NOTE 2. Stopping test
         # but stop test should be before all calculations of du
         # okay, but haveinv is updated in qnewton procedure...
+        # TODO this should be placed elsewhere (eg end of previous iteration)
         if ϵₖ + haveinv * norm(sₖ)^2 ≤ VU.ϵ^2;
             @info "\n eps+(|s|^2)/h STOPPING TEST SATISFIED in $(state.k) iterations"
             return (;
                     μ = state.μ,
                     ϵ̂ = state.ϵ,
                     ŝnorm = norm(state.s),
-                    nnullsteps = 0,
+                    bboxcalls = length(state.nullstepshist),
                     dotsₖNewtonstep,
                     nₖ,
                     Newtonsteplength,
-                    nullsteps
+                    state.nullstepshist,
             ), problem_solved
         end
 
@@ -339,7 +339,6 @@ function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
 
         println(" New prox point update")
         ϵᶜₖ₊₁, pᶜₖ₊₁, Fpᶜₖ₊₁, gpᶜₖ₊₁, sᶜₖ₊₁, Uᶜₖ₊₁, bundleinfo = bundlesubroutine!(state.bundle, pb, μₖ, xₖ₊₁, σₖ, VU.ϵ, haveinv; nullstepshist = state.nullstepshist)
-        nullsteps = vcat(nullsteps, bundleinfo.phist) # log nullsteps of correction prox-bundle step
         change_bundle_center!(bundle, pₖ, Fpₖ)
     end
     # else
@@ -347,7 +346,6 @@ function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
     #     xₖ₊₁ = F(pb, pₖ) < Fpᶜₖ₊₁ ? pₖ : pᶜₖ₊₁
 
     #     state.ϵ, state.p, state.s, state.U, bundleinfo = bundlesubroutine!(state.bundle, pb, μₖ, xₖ₊₁, σₖ, VU.ϵ; printlev = 0)
-    #     nullsteps = vcat(nullsteps, bundleinfo.phist) # log nullsteps of correction prox-bundle step
     # end
 
 
@@ -367,7 +365,6 @@ function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
     if !haskey(bundleinfo, :subroutinestatus) # NOTE Only Newton step (!)
         iteration_status = iteration_completed
     elseif bundleinfo.subroutinestatus == :SeriousStepFound # NOTE Newton + bundle
-        nullsteps = vcat(nullsteps, bundleinfo.phist) # log nullsteps of prox-bundle step
         iteration_status = iteration_completed
     elseif  bundleinfo.subroutinestatus == :ApproxMinimizerFound # NOTE Global solution found
         iteration_status = problem_solved
@@ -383,11 +380,11 @@ function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
             μ = state.μ,
             ϵ̂ = state.ϵ,
             ŝnorm = norm(state.s),
-            nnullsteps = haskey(bundleinfo, :nnullsteps) ? bundleinfo.nnullsteps : 0,
+            bboxcalls = length(state.nullstepshist),
             dotsₖNewtonstep,
             nₖ,
             Newtonsteplength,
-            nullsteps
+            state.nullstepshist
     ), iteration_status
 end
 

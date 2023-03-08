@@ -4,43 +4,39 @@ using PGFPlotsX
 using DelimitedFiles
 
 
-function extract_seriousnullsteps(pb, tr, Fopt)
-    ind = 2
-    xsnull, ysnull = [], []
-    xsser, ysser = [], []
+function extract_seriousnullsteps(pb, tr)
+    xsnull, ysnull = Int64[], Float64[]
+    xsser, ysser = Int64[], Float64[]
     function subopt(p)
-        # return F(pb, p) - Fopt
         return F(pb, p)
     end
 
-    # initial point (no bundle info)
-    push!(xsser, ind - 1)
-    push!(ysser, subopt(first(tr).additionalinfo.p))
-    push!(xsnull, ind - 1)
-    push!(ysnull, subopt(first(tr).additionalinfo.p))
+    iser = 1
+    for (inull, pt) in enumerate(tr[end].additionalinfo.nullstepshist)
+        Fpt = subopt(pt)
 
-    for o in tr[2:end]
-        if haskey(o.additionalinfo, :nullsteps)
-            nullsteps = o.additionalinfo.nullsteps
-            for p in nullsteps
-                push!(xsnull, ind)
-                ind += 1
-                push!(ysnull, subopt(p))
-            end
+        # Null steps
+        push!(ysnull, Fpt)
+        push!(xsnull, inull)
+
+        # Serious step
+        if pt == tr[iser].additionalinfo.p
+            push!(ysser, Fpt)
+            push!(xsser, inull)
+            iser += 1
         end
-        push!(xsser, ind - 1)
-        push!(ysser, subopt(o.additionalinfo.p))
     end
+    @assert iser ≥ length(tr)
 
     return xsnull, ysnull, xsser, ysser
 end
 
 function plot_seriousnullsteps(pb, tr, Fopt; title)
-    xsnull, ysnull, xsser, ysser = extract_seriousnullsteps(pb, tr, Fopt)
+    xsnull, ysnull, xsser, ysser = extract_seriousnullsteps(pb, tr)
 
     model_to_curve = [
-        ("null", xsnull, ysnull, "x", COLORS_7[3]),
-        ("serious", xsser, ysser, "pentagon", COLORS_7[5])
+        ("null", xsnull, ysnull .- Fopt, "x", COLORS_7[3]),
+        ("serious", xsser, ysser .- Fopt, "pentagon", COLORS_7[5])
     ]
 
     # Building plot
@@ -64,7 +60,7 @@ function plot_seriousnullsteps(pb, tr, Fopt; title)
     fig = TikzPicture(@pgf Axis(
         {
             ymode = "log",
-            xlabel = "iteration",
+            xlabel = "bbox calls",
             ylabel = "subopt",
             legend_pos = "north east",
             legend_style = "font=\\footnotesize",
@@ -72,8 +68,8 @@ function plot_seriousnullsteps(pb, tr, Fopt; title)
             unbounded_coords = "jump",
             title = title,
             xmin = 0,
-            xmax = 200,
-            ymin = 1e-15,
+            # xmax = 200,
+            ymin = 1e-16,
             ymax = 1e6,
             width = "8cm",
             height = "6cm",
@@ -83,22 +79,8 @@ function plot_seriousnullsteps(pb, tr, Fopt; title)
     return fig
 end
 
-function write_nullsteps(pb, tr, Fopt, name)
-    ysnull = []
-    function subopt(p)
-        # return F(pb, p) - Fopt
-        return F(pb, p)
-    end
-
-    for o in tr
-        if haskey(o.additionalinfo, :nullsteps)
-            nullsteps = o.additionalinfo.nullsteps
-            for p in nullsteps
-                push!(ysnull, subopt(p))
-            end
-        end
-        push!(ysnull, subopt(o.additionalinfo.p))
-    end
+function write_nullsteps(pb, tr, name)
+    xsnull, ysnull, xsser, ysser = extract_seriousnullsteps(pb, tr)
 
     open(name, "w") do io
         writedlm(io, ysnull)
