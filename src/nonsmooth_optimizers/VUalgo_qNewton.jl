@@ -46,8 +46,8 @@ function qNewtonupdate(pₖ, pₖ₋₁, sₖ, sₖ₋₁, U, Hin, k, curvmin, �
                 Wds=H\ds
                 dsWds=ds'*Wds
 
-                if dsWds > (1-.9999999e-7)*dpds
-                    # NOTE: BFGS update
+                if dsWds > (1-1e-8)*dpds
+                    # BFGS update
                     H=H -(Hndp*Hndp')/dpHndp +(ds*ds')/dpds
                 else
                     # SR1 update
@@ -56,7 +56,7 @@ function qNewtonupdate(pₖ, pₖ₋₁, sₖ, sₖ₋₁, U, Hin, k, curvmin, �
                 end
             end
         else
-            @error "No update, curvature too small"
+            @warn "No update, curvature too small"
         end
     end
 
