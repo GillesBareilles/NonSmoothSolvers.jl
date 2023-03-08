@@ -46,26 +46,25 @@ end
 
 function initial_state(::VUbundle{Tf}, initial_x::Vector{Tf}, pb) where Tf
     n = length(initial_x)
-    fx, v = blackbox_oracle(pb, initial_x)
+    Finit_x, ginit_x = blackbox_oracle(pb, initial_x)
     nullstepshist = MutableLinkedList{Vector{Tf}}(initial_x)
-    push!(nullstepshist, initial_x)
     return VUbundleState(
         copy(initial_x),
-        Tf(0),
-        similar(initial_x),
-        v,
+        Finit_x,
+        ginit_x,
+        copy(ginit_x),
         Tf(1),
         Tf(0.5),
         Matrix{Tf}(1.0I, n, n),
         Matrix{Tf}(1.0I, n, n),
         0,
         copy(initial_x),
-        v,
+        copy(ginit_x),
         1,
         Tf(4),
         Tf(4e4),
         initial_bundle(pb, initial_x),
-        norm(v),
+        norm(ginit_x),
         n,
         n,
         1,
@@ -92,15 +91,16 @@ end
 
 function toto(nullstepshist::MutableLinkedList{T}; loc = "") where T
     # println("---- len: ", length(nullstepshist))
-    @show loc
     if length(nullstepshist) > 2 && nullstepshist[end] in nullstepshist[1:end-1]
+        @show loc
         for p in nullstepshist
             @show p
         end
+        @assert false
     end
     return
 end
-toto(state) = toto(state.nullstepshist)
+toto(state; loc = "") = toto(state.nullstepshist; loc)
 
 #
 ### VUbundle method
@@ -125,9 +125,6 @@ function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
     pₖsave = deepcopy(pₖ)
     sₖsave = deepcopy(sₖ)
     nₖsave = state.nₖ
-
-    @info "hist len" length(state.nullstepshist)
-    toto(state.nullstepshist; loc = "xx")
 
     μmin = 1e-6
 
@@ -218,7 +215,7 @@ function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
         if performUstep
             xᶜₖ₊₁ = pₖ + du
             Fxᶜₖ₊₁, gxᶜₖ₊₁ = blackbox_oracle(pb, xᶜₖ₊₁)
-            push!(state.nullstepshist, xᶜₖ₊₁); toto(state; loc = "aa")
+            push!(state.nullstepshist, copy(xᶜₖ₊₁)); toto(state; loc = "aa")
             errxᶜₖ₊₁ = F(pb, pₖ) - Fxᶜₖ₊₁ + dot(gxᶜₖ₊₁, xᶜₖ₊₁ - pₖ) # linearization error, centered at p
 
 
@@ -227,14 +224,10 @@ function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
 
             (printlev > 2) && printstyled(" 4. extrapolation search\n", color = :green)
             # NOTE 4. extrapolation search
-
-            Fpₖ, gpₖ = blackbox_oracle(pb, pₖ)
-            push!(state.nullstepshist, pₖ); toto(state; loc = "bb")
-            @info "adding" pₖ
             dxc = xᶜₖ₊₁ - pₖ
             gxcdxc = dot(gxᶜₖ₊₁, dxc)
 
-            xᶜₖ₊₁, Fxᶜₖ₊₁, gxᶜₖ₊₁, errxᶜₖ₊₁, muave, mufirst, nsrch = esearch!(bundle, xᶜₖ₊₁, Fxᶜₖ₊₁, gxᶜₖ₊₁, errxᶜₖ₊₁, pₖ, Fpₖ, gpₖ, dxc, gxcdxc, pb, state.k, μₖ, σₖ, sₖ; state.nullstepshist)
+            xᶜₖ₊₁, Fxᶜₖ₊₁, gxᶜₖ₊₁, errxᶜₖ₊₁, muave, mufirst, nsrch = esearch!(bundle, xᶜₖ₊₁, Fxᶜₖ₊₁, gxᶜₖ₊₁, errxᶜₖ₊₁, pₖ, Fpₖ, gpₖ, dxc, gxcdxc, pb, state.k, μₖ, σₖ, sₖ; nullstepshist = state.nullstepshist)
 
             (printlev > 2) && @show xᶜₖ₊₁
             (printlev > 2) && @show Fxᶜₖ₊₁
@@ -275,7 +268,7 @@ function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
 
                 (printlev > 3) && @show bundle
                 empty!(bundle.bpts)
-                push!(bundle.bpts, BundlePoint(-1., gxᶜₖ₊₁, errxᶜₖ₊₁, [-1.])); toto(state)
+                push!(bundle.bpts, BundlePoint(-1., gxᶜₖ₊₁, errxᶜₖ₊₁, [-1.])); toto(state; loc = "uu")
                 (printlev > 3) && @show bundle
 
                 # faisp=[gxc];
@@ -301,7 +294,7 @@ function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
                 (printlev > 3) && display(bundle)
 
                 # Bundle subroutine at point xᶜₖ₊₁ (ie proximal step approximation)
-                ϵᶜₖ₊₁, pᶜₖ₊₁, Fpᶜₖ₊₁, gpᶜₖ₊₁, sᶜₖ₊₁, Uᶜₖ₊₁, bundleinfo = bundlesubroutine!(state.bundle, pb, μₖ, xᶜₖ₊₁, σₖ, VU.ϵ, haveinv)
+                ϵᶜₖ₊₁, pᶜₖ₊₁, Fpᶜₖ₊₁, gpᶜₖ₊₁, sᶜₖ₊₁, Uᶜₖ₊₁, bundleinfo = bundlesubroutine!(state.bundle, pb, μₖ, xᶜₖ₊₁, σₖ, VU.ϵ, haveinv; nullstepshist = state.nullstepshist)
                 (printlev > 2) && println("- prox bundle output")
                 (printlev > 2) && @show pᶜₖ₊₁
                 (printlev > 2) && @show sᶜₖ₊₁
@@ -345,7 +338,7 @@ function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
         end
 
         println(" New prox point update")
-        ϵᶜₖ₊₁, pᶜₖ₊₁, Fpᶜₖ₊₁, gpᶜₖ₊₁, sᶜₖ₊₁, Uᶜₖ₊₁, bundleinfo = bundlesubroutine!(state.bundle, pb, μₖ, xₖ₊₁, σₖ, VU.ϵ, haveinv)
+        ϵᶜₖ₊₁, pᶜₖ₊₁, Fpᶜₖ₊₁, gpᶜₖ₊₁, sᶜₖ₊₁, Uᶜₖ₊₁, bundleinfo = bundlesubroutine!(state.bundle, pb, μₖ, xₖ₊₁, σₖ, VU.ϵ, haveinv; nullstepshist = state.nullstepshist)
         nullsteps = vcat(nullsteps, bundleinfo.phist) # log nullsteps of correction prox-bundle step
         change_bundle_center!(bundle, pₖ, Fpₖ)
     end

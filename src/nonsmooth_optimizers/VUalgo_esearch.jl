@@ -44,7 +44,8 @@ function esearch!(bundle::Bundle{Tf}, xc, fxc, gxc, erxc, p, fp, gp, dxc, gxcdxc
         t=t+dt
 
         fxtrap, gxtrap = blackbox_oracle(pb, xtrap); nsim += 1
-        push!(nullstepshist, xtrap)
+        push!(nullstepshist, copy(xtrap))
+        toto(nullstepshist, loc = "esearch1")
 
         gxtdxc = gxtrap'*dxc
         erxtrap = fp-fxtrap+gxtdxc*t # center at p
@@ -139,7 +140,7 @@ function esearch!(bundle::Bundle{Tf}, xc, fxc, gxc, erxc, p, fp, gp, dxc, gxcdxc
             xls=xlo+tvu*xdiff
 
             fxls, gxls = blackbox_oracle(pb, xls); nsim=nsim+1; nb=nb+1;
-            push!(nullstepshist, xls)
+            push!(nullstepshist, copy(xls)); toto(nullstepshist, loc = "esearch2")
 
             erxls=fp-fxls-gxls'*(p-xls); # gxls'* repeated below
             #fprintf('\n  %i(%i) dxlo %7.4e dxhi %7.4e tv %7.4e tu %7.4e fxls %7.4e muu %7.4e muubig %7.4e', k,nsim,dxlo,dxhi,tv,tu,fxls,muu,muubig);

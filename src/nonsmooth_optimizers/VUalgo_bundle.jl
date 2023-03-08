@@ -62,7 +62,7 @@ function bundlesubroutine!(bundle::Bundle{Tf}, pb, μ::Tf, x::Vector{Tf}, σ::Tf
 
         printlev > 3 && println(" xxx augmenting bundle")
         Fp̂, gp̂ = blackbox_oracle(pb, p̂)
-        push!(nullstepshist, p̂)
+        push!(nullstepshist, copy(p̂)); toto(nullstepshist, loc = "bundle")
         push!(bundle.bpts, BundlePoint(
             Fp̂,
             gp̂,
@@ -140,7 +140,7 @@ function get_Uorthonormalbasis(activebundle::Bundle{Tf}, α̂minnormelt, α_null
     nactgᵢ = sum(actindices)
 
     if nactgᵢ == 1
-        @info "only one active elt here"
+        @info "detected empty V space"
         return Matrix{Tf}(I, n, n)
     end
 
