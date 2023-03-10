@@ -15,13 +15,13 @@ function run_VUplots()
     push!(problems, (; name="maxquadBGLS", pb, xinit=ones(10), iterations_limit=40, Fopt = prevfloat(F(pb, xopt))))
 
 
-    # for ν in 0:3
-    #     pb, xopt, Fopt, Mopt = NSP.F3d_U(ν)
-    #     xinit = xopt .+ Float64[100, 33, -100]
-    #     push!(problems, (; name="F3d-U$(ν)", pb, xinit, iterations_limit=20, Fopt))
-    # end
-    # pb, xopt, Fopt, Mopt = NSP.F2d()
-    # push!(problems, (; name="F2d", pb, xinit=[0.9, 1.9], iterations_limit=20, Fopt))
+    for ν in 0:3
+        pb, xopt, Fopt, Mopt = NSP.F3d_U(ν)
+        xinit = xopt .+ Float64[100, 33, -100]
+        push!(problems, (; name="F3d-U$(ν)", pb, xinit, iterations_limit=20, Fopt))
+    end
+    pb, xopt, Fopt, Mopt = NSP.F2d()
+    push!(problems, (; name="F2d", pb, xinit=[0.9, 1.9], iterations_limit=20, Fopt))
 
     getpoint(o, os, osext) = deepcopy(os.p)
     plot = TikzDocument()
