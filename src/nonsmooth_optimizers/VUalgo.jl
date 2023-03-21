@@ -106,7 +106,6 @@ toto(state; loc = "") = toto(state.nullstepshist; loc)
 ### VUbundle method
 #
 function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
-    # ϵₖ = state.ϵ
     printlev = 0
 
     pₖ = state.p
@@ -177,8 +176,7 @@ function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
         νlow = ν
 
         # TODO make this in place for H
-        du, hmin, haveinv, Hout, state.kase = qNewtonupdate(pₖ, pₖ₋₁, sₖ, sₖ₋₁, Uₖ, Hₖ, state.k, VU.curvmin, ν, νlow, μₖ, state.kase)
-        state.H .= Hout
+        du, haveinv, state.kase = qNewtonupdate!(state.H, pₖ, pₖ₋₁, sₖ, sₖ₋₁, Uₖ, state.k, VU.curvmin, ν, νlow, μₖ, state.kase)
 
         (printlev > 2) && @show du
         (printlev > 2) && @show Hₖ
@@ -224,10 +222,7 @@ function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
 
             (printlev > 2) && printstyled(" 4. extrapolation search\n", color = :green)
             # NOTE 4. extrapolation search
-            dxc = xᶜₖ₊₁ - pₖ
-            gxcdxc = dot(gxᶜₖ₊₁, dxc)
-
-            xᶜₖ₊₁, Fxᶜₖ₊₁, gxᶜₖ₊₁, errxᶜₖ₊₁, muave, mufirst, nsrch = esearch!(bundle, xᶜₖ₊₁, Fxᶜₖ₊₁, gxᶜₖ₊₁, errxᶜₖ₊₁, pₖ, Fpₖ, gpₖ, dxc, gxcdxc, pb, state.k, μₖ, σₖ, sₖ; nullstepshist = state.nullstepshist)
+            xᶜₖ₊₁, Fxᶜₖ₊₁, gxᶜₖ₊₁, errxᶜₖ₊₁, muave, mufirst, nsrch = esearch!(bundle, xᶜₖ₊₁, Fxᶜₖ₊₁, gxᶜₖ₊₁, errxᶜₖ₊₁, pₖ, Fpₖ, gpₖ, pb, state.k, μₖ, σₖ, sₖ; nullstepshist = state.nullstepshist)
 
             (printlev > 2) && @show xᶜₖ₊₁
             (printlev > 2) && @show Fxᶜₖ₊₁
@@ -322,6 +317,7 @@ function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
     # NOTE 7. recovery from prox + Newton failure
     if !newtonproxsuccessful
         @warn "Newton + prox failed, to be implemented" (Fpᶜₖ₊₁ ≤ F(pb, pₖ) - VU.m / (2μₖ) * norm(sᶜₖ₊₁)^2) (norm(sᶜₖ₊₁) ≤ max(1, sqrt(n))*norm(sᶜₖ₊₁))
+        @error "To be implemented"
 
         xₖ₊₁ = copy(pₖ)
         if performUstep

@@ -1,5 +1,20 @@
-function esearch!(bundle::Bundle{Tf}, xc, fxc, gxc, erxc, p, fp, gp, dxc, gxcdxc, pb, k, μ, σ, sₖ; printlev = 0, nullstepshist = []) where Tf
+"""
+    $TYPEDSIGNATURES
+
+Extrapolation search from point `xc`, and `p`.
+"""
+function esearch!(bundle::Bundle{Tf},
+                  xc, fxc, gxc, erxc,
+                  p, fp, gp,
+                  pb, k, μ, σ, sₖ;
+                  printlev = 0, nullstepshist = []) where Tf
     nsrch = 0
+
+    xᶜₖ₊₁, pₖ = xc, p
+    gxᶜₖ₊₁ = gxc
+
+    dxc = xᶜₖ₊₁ - pₖ
+    gxcdxc = dot(gxᶜₖ₊₁, dxc)
 
     ### extrapolation line search if wolfe test not satisfied at xc
     esearch=0
@@ -7,7 +22,6 @@ function esearch!(bundle::Bundle{Tf}, xc, fxc, gxc, erxc, p, fp, gp, dxc, gxcdxc
     gxoldxc=dot(gp, dxc)
     wolfetest = mwolfe*gxoldxc
     nxhi=0
-    dropp=0
     # in case extrapolation drops p from bundle
 
     nsim = 0
@@ -27,14 +41,16 @@ function esearch!(bundle::Bundle{Tf}, xc, fxc, gxc, erxc, p, fp, gp, dxc, gxcdxc
     gxtdxc=gxcdxc
     dt=1.0
     t=1.0
-    dropp=1
     mextrap=4.0
     mextra=1.0
 
+    # NOTE extrapolate: find dt > 1 : xtrap = xc + dt * dxc meets wolfe
     while gxtdxc <  wolfetest
         esearch=1;
         nsrch=nsrch+1; # extrapolate
         d2=gxcdxc-gxoldxc;
+
+        # BUG this is fishy, always *4
         if -gxcdxc > d2*mextrap
             dt=mextrap*dt
         else
@@ -43,6 +59,7 @@ function esearch!(bundle::Bundle{Tf}, xc, fxc, gxc, erxc, p, fp, gp, dxc, gxcdxc
         xtrap .= xc .+ dt*dxc
         t=t+dt
 
+        # NOTE: oracle call
         fxtrap, gxtrap = blackbox_oracle(pb, xtrap); nsim += 1
         push!(nullstepshist, copy(xtrap))
         toto(nullstepshist, loc = "esearch1")
@@ -61,18 +78,21 @@ function esearch!(bundle::Bundle{Tf}, xc, fxc, gxc, erxc, p, fp, gp, dxc, gxcdxc
         end
     end # of while not wolfe and of extrapolation
 
-    ## prepare for possible interpolation
+    ## NOTE prepare for possible interpolation
+    # set [xhi, xlo] as an interval ok with Wolfe
     if esearch==1
         nxhi=nxhi+1
         if fxtrap ≤ fxc
             fxhi=fxc;    xdiff=xc-xtrap;
-            erxhi=erxc; gxhi=gxc; #hessxhi=hessxc;
             xlo=xtrap; fxlo=fxtrap; dxlo=-dt*gxtdxc; dxhi=-dt*gxcdxc;
+
+            erxhi=erxc; gxhi=gxc; #hessxhi=hessxc;
             erxlo=erxtrap; gxlo=gxtrap; #hessxlo=hessxtrap;
         else
             fxhi=fxtrap; xdiff=xtrap-xc;
-            erxhi=erxtrap; gxhi=gxtrap;# hessxhi=hessxtrap;
             xlo=xc;    fxlo=fxc;    dxlo= dt*gxcdxc; dxhi= dt*gxtdxc;
+
+            erxhi=erxtrap; gxhi=gxtrap;# hessxhi=hessxtrap;
             erxlo=erxc; gxlo=gxc; #hessxlo=hessxc;
         end
     else # esearch=0
@@ -88,7 +108,7 @@ function esearch!(bundle::Bundle{Tf}, xc, fxc, gxc, erxc, p, fp, gp, dxc, gxcdxc
             erxlo=Tf(0); gxlo=gp; #hessxlo=hess;
         end
     end
-    d2=dxhi-dxlo; xdiff2=xdiff'*xdiff; muu=d2/xdiff2; mufirst=muu;
+    d2=dxhi-dxlo; xdiff2=norm(xdiff)^2; muu=d2/xdiff2; mufirst=muu;
     nave=0; muave=muu;
 
     @assert !isnan(muu) # trouble if xc == p
@@ -103,9 +123,6 @@ function esearch!(bundle::Bundle{Tf}, xc, fxc, gxc, erxc, p, fp, gp, dxc, gxcdxc
     (printlev > 3) && @show dxhi
     (printlev > 3) && @show k
     (printlev > 3) && @show esearch
-    # if (dxlo<0 && dxhi>0) && (k==1 && esearch==0)
-        # throw(ErrorException("Not implemented"))
-
 
     if (dxlo<0 && dxhi>0) && (k==1 && esearch==0)
         isearch=1 # June08 version

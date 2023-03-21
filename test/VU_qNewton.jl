@@ -19,12 +19,11 @@ using LinearAlgebra
         μₖ = 4.0
         kase = 0.0
 
-        du, hmin, haveinv, Hout, kase = NSS.qNewtonupdate(pₖ, pₖ₋₁, sₖ, sₖ₋₁, Uₖ, Hₖ, k, curvmin, ν, νlow, μₖ, kase)
+        du, haveinv, kase = NSS.qNewtonupdate!(Hₖ, pₖ, pₖ₋₁, sₖ, sₖ₋₁, Uₖ, k, curvmin, ν, νlow, μₖ, kase)
 
         @test isapprox(du, [0.0, -0.25])
         @test isapprox(haveinv, 0.25)
-        @test isapprox(hmin, 0.0)
-        @test isapprox(Hout, [4.0 0.0; 0.0 4.0])
+        @test isapprox(Hₖ, [4.0 0.0; 0.0 4.0])
         @test isapprox(kase, 0.0)
     end
 
@@ -42,12 +41,11 @@ using LinearAlgebra
         μₖ = 1.3375
         kase = 0
 
-        du, hmin, haveinv, H, kase = NSS.qNewtonupdate(pₖ, pₖ₋₁, sₖ, sₖ₋₁, Uₖ, Hₖ, k, curvmin, ν, νlow, μₖ, kase)
+        du, haveinv, kase = NSS.qNewtonupdate!(Hₖ, pₖ, pₖ₋₁, sₖ, sₖ₋₁, Uₖ, k, curvmin, ν, νlow, μₖ, kase)
 
         @test isapprox(du, [-0.7750600544234679, -0.33253857536636194])
         @test isapprox(haveinv, 2.1389999379348703)
-        @test isapprox(hmin, 0.0)
-        @test isapprox(H, [0.4675081949583715 0.0; 0.0 0.4675081949583715])
+        @test isapprox(Hₖ, [0.4675081949583715 0.0; 0.0 0.4675081949583715])
         @test isapprox(kase, 1)
     end
 
@@ -65,12 +63,11 @@ using LinearAlgebra
         μₖ = 78.49566703226272
         kase = 1
 
-        du, hmin, haveinv, H, kase = NSS.qNewtonupdate(pₖ, pₖ₋₁, sₖ, sₖ₋₁, Uₖ, Hₖ, k, curvmin, ν, νlow, μₖ, kase)
+        du, haveinv, kase = NSS.qNewtonupdate!(Hₖ, pₖ, pₖ₋₁, sₖ, sₖ₋₁, Uₖ, k, curvmin, ν, νlow, μₖ, kase)
 
         @test isapprox(du, [-0.015346396681205538, -0.00010310505486561911])
         @test isapprox(haveinv, 2.2842965561311965)
-        @test isapprox(hmin, 0.0)
-        @test isapprox(H, [0.4364492826600879 0.09806118467912484; 0.09806118467912484 0.539596654183735])
+        @test isapprox(Hₖ, [0.4364492826600879 0.09806118467912484; 0.09806118467912484 0.539596654183735])
         @test isapprox(kase, 2)
     end
 
@@ -88,12 +85,11 @@ using LinearAlgebra
         μₖ = 1.3375
         kase = 2
 
-        du, hmin, haveinv, H, kase = NSS.qNewtonupdate(pₖ, pₖ₋₁, sₖ, sₖ₋₁, Uₖ, Hₖ, k, curvmin, ν, νlow, μₖ, kase)
+        du, haveinv, kase = NSS.qNewtonupdate!(Hₖ, pₖ, pₖ₋₁, sₖ, sₖ₋₁, Uₖ, k, curvmin, ν, νlow, μₖ, kase)
 
         @test isapprox(du, [0.001897500636589409, -1.800195723272915e-6])
         @test isapprox(haveinv, 2.000066914954979)
-        @test isapprox(hmin, 0.0)
-        @test isapprox(H, [0.49998593698974375 0.0014126451805965882; 0.0014126451805965882 0.5169142670584466])
+        @test isapprox(Hₖ, [0.49998593698974375 0.0014126451805965882; 0.0014126451805965882 0.5169142670584466])
         @test isapprox(kase, 2)
     end
 end

@@ -1,4 +1,10 @@
-function qNewtonupdate(pₖ, pₖ₋₁, sₖ, sₖ₋₁, U, Hin, k, curvmin, ν, νlow, μ, kase; printlev = 0)
+"""
+    $TYPEDSIGNATURES
+
+Update the quasi-Newton `H` matrix from updates `pₖ`, `pₖ₋₁`, `sₖ`, `sₖ₋₁` with
+BFGS or SR1 scheme.
+"""
+function qNewtonupdate!(H, pₖ, pₖ₋₁, sₖ, sₖ₋₁, U, k, curvmin, ν, νlow, μ, kase; printlev = 0)
     n = length(pₖ)
 
     printlev > 0 && printstyled(" === qNewton step computation === \n", color = :yellow)
@@ -7,7 +13,7 @@ function qNewtonupdate(pₖ, pₖ₋₁, sₖ, sₖ₋₁, U, Hin, k, curvmin, �
     printlev > 1 && @show sₖ
     printlev > 1 && @show sₖ₋₁
     printlev > 1 && @show U
-    printlev > 1 && @show Hin
+    printlev > 1 && @show H
     printlev > 1 && @show k
     printlev > 1 && @show curvmin
     printlev > 1 && @show ν
@@ -16,8 +22,6 @@ function qNewtonupdate(pₖ, pₖ₋₁, sₖ, sₖ₋₁, U, Hin, k, curvmin, �
     printlev > 1 && @show kase
     printlev > 0 && printstyled(" ============================== \n", color = :yellow)
 
-    # TODO H in place
-    H = copy(Hin)
     if k > 1
         dp = pₖ-pₖ₋₁
         ds = sₖ-sₖ₋₁
@@ -48,11 +52,11 @@ function qNewtonupdate(pₖ, pₖ₋₁, sₖ, sₖ₋₁, U, Hin, k, curvmin, �
 
                 if dsWds > (1-1e-8)*dpds
                     # BFGS update
-                    H=H -(Hndp*Hndp')/dpHndp +(ds*ds')/dpds
+                    H .= H .- (Hndp*Hndp')/dpHndp .+ (ds*ds')/dpds
                 else
                     # SR1 update
                     r=ds-Hndp
-                    H=H  +(r*r')/(r'*dp)
+                    H .= H .+ (r*r')/(r'*dp)
                 end
             end
         else
@@ -61,19 +65,18 @@ function qNewtonupdate(pₖ, pₖ₋₁, sₖ, sₖ₋₁, U, Hin, k, curvmin, �
     end
 
     Hreduced=U'*H*U
-    hmin = min(minimum(Hreduced[i, i] for i in axes(Hreduced, 1)), 0)
+    # hmin = min(minimum(Hreduced[i, i] for i in axes(Hreduced, 1)), 0)
     hsum = sum(max(Hreduced[i, i], 0) for i in axes(Hreduced, 1))
     haveinv = ν/hsum
     du=-U*(Hreduced\(U'*sₖ))
 
-
     printlev > 0 && printstyled(" ============================== \n", color = :yellow)
     printlev > 1 && @show du
     printlev > 1 && @show haveinv
-    printlev > 1 && @show hmin
+    # printlev > 1 && @show hmin
     printlev > 1 && @show H
     printlev > 1 && @show kase
     printlev > 0 && printstyled(" === qNewton step computation end \n", color = :yellow)
 
-    return du, hmin, haveinv, H, kase
+    return du, haveinv, kase
 end
