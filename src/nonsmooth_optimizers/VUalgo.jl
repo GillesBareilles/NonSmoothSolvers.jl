@@ -4,10 +4,10 @@
 Parameters:
 - `ϵ`: overall precision required
 - `m`: sufficient decrease parameter
-- `μlow`: minimal prox parameter (μ is inverse of γ). Higher μ means smaller serious steps, but less null steps
+- `μmin`: minimal prox parameter (μ is inverse of γ). Higher μ means smaller serious steps, but less null steps
 """
 Base.@kwdef struct VUbundle{Tf} <: NonSmoothOptimizer{Tf}
-    μlow::Tf = 0.05
+    μmin::Tf = 1e-6
     ϵ::Tf = 1e-6
     m::Tf = 0.5
     curvmin::Tf = 1e-6          # min curvature for quasi Newton matrix update
@@ -124,8 +124,9 @@ function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
     pₖsave = deepcopy(pₖ)
     sₖsave = deepcopy(sₖ)
     nₖsave = state.nₖ
+    μₖsave = μₖ
 
-    μmin = 1e-6
+    vound = (σₖ / μₖ) * norm(sₖ)^2 # for stopping isearch
 
     dotsₖNewtonstep = 0.0
     nₖ = size(Uₖ, 2)
@@ -235,7 +236,7 @@ function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
 
             (printlev > 2) && printstyled(" 5. mu update\n", color = :green)
             # NOTE 5. mu update
-            μₖ, state.μmax = update_mu(μₖ, state.k, mufirst, muave, nₖ, state.nₖ₋₁, haveinv, nsrch, sclst, μlast, sscale, sₖ, μmin, state.μmax, state.firstsnnorm, state.run)
+            μₖ, state.μmax = update_mu(μₖ, state.k, mufirst, muave, nₖ, state.nₖ₋₁, haveinv, nsrch, sclst, μlast, sscale, sₖ, VU.μmin, state.μmax, state.firstsnnorm, state.run)
             (printlev > 2) && @show μₖ
 
             # NOTE 6. check for sufficient descent\n
@@ -321,15 +322,15 @@ function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
 
         xₖ₊₁ = copy(pₖ)
         if performUstep
-            # Linesearch on line pₖ → pᶜₖ₊₁ to get an xₖ₊₁ such that F(xₖ₊₁) ≤ F(pₖ)
-            # Dummy VU linesearch
-            # TODO replace by linesearch for nondummies
-            xₖ₊₁ = F(pb, pₖ) < Fpᶜₖ₊₁ ? pₖ : pᶜₖ₊₁
-            Fxₖ₊₁ = F(pb, xₖ₊₁)
+            # NOTE Linesearch on line pₖ → pᶜₖ₊₁ to get an xₖ₊₁ such that F(xₖ₊₁) ≤ F(pₖ)
+            xₖ₊₁, Fxₖ₊₁, muave = isearch(pb, pₖ, Fpₖ, gpₖ, bundle, pᶜₖ₊₁, Fpᶜₖ₊₁, gpᶜₖ₊₁, state.k, σₖ, vound, mufirst; nullstepshist = state.nullstepshist)
 
-            # TODO adjust μ
+            # NOTE adjust μ
+            # TODO determine importance of parameter `run`
+            μₖ, run = mu_update_postisearch(μₖ, μₖsave, muave, haveinv, state.μmax, VU.μmin, state.k)
+            state.μ = μₖ
 
-            # center bundle to xₖ₊₁, if different from pₖ
+            # center bundle to xₖ₊₁ if different from pₖ
             change_bundle_center!(bundle, xₖ₊₁, Fxₖ₊₁)
         end
 
@@ -337,12 +338,6 @@ function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
         ϵᶜₖ₊₁, pᶜₖ₊₁, Fpᶜₖ₊₁, gpᶜₖ₊₁, sᶜₖ₊₁, Uᶜₖ₊₁, bundleinfo = bundlesubroutine!(state.bundle, pb, μₖ, xₖ₊₁, σₖ, VU.ϵ, haveinv; nullstepshist = state.nullstepshist)
         change_bundle_center!(bundle, pₖ, Fpₖ)
     end
-    # else
-    #     @warn "U-Newton + approximate prox failed to provide sufficient decrease"
-    #     xₖ₊₁ = F(pb, pₖ) < Fpᶜₖ₊₁ ? pₖ : pᶜₖ₊₁
-
-    #     state.ϵ, state.p, state.s, state.U, bundleinfo = bundlesubroutine!(state.bundle, pb, μₖ, xₖ₊₁, σₖ, VU.ϵ; printlev = 0)
-    # end
 
 
     (printlev > 2) && printstyled(" 8 memory\n", color = :green)

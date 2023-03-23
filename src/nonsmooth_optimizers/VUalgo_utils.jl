@@ -18,6 +18,9 @@ function Base.show(io::IO, bundle::Bundle)
     print(io, " + gᵢ: ", map(bp -> bp.gᵢ, bundle.bpts))
     return
 end
+function length(bundle::Bundle)
+    return length(bundle.bpts)
+end
 
 function initial_bundle(pb, xcenter::Vector{Tf}) where {Tf}
     Fx, gx = blackbox_oracle(pb, xcenter)
@@ -119,4 +122,35 @@ function update_mu(mu, k, mufirst, muave, ν, νold, haveinv, nsrch, sclst, mula
     (printlev > 2) && @show mu
     (printlev > 2) && @show mumax
     return mu, mumax
+end
+
+
+function mu_update_postisearch(μₖ, μₖsave, muave, haveinv, μmax, μmin, k)
+    # NOTE adjust μ
+    # ====================================
+
+    mulast = μₖsave
+    mufail=μₖ;
+    mulo=1e-2 * min(mulast,mufail);#  usually 1.d-2
+    muhi=μmax;
+    mu=median([mulast,mufail,muave,1.0/haveinv]); # gives 86/11
+    if k == 2
+        mu=min([mulast,mufail,muave,1.0/haveinv])
+    end
+    mu=median([mulo,mu,muhi]);
+
+    mu=max(μₖ,μmin)
+    # Lemma 19 uses mumin
+
+    #%# 2nd Bundle Subprocedure (call with xcenter, mu depends on output of isearch)
+    #    berlin OK to call bunproc with center=p
+    #    recenter to xlo if xlo not equal to p
+
+    # berlin=berlin+fxlo-fp-bundl'*(xlo-p);
+    run=2;
+    if muave>muhi
+        run=3;
+    end
+
+    return μₖ, run
 end

@@ -1,5 +1,7 @@
 module NonSmoothSolvers
 
+import Base.length
+
 using NonSmoothProblems
 const NSP = NonSmoothProblems
 using LinearAlgebra
@@ -54,6 +56,7 @@ include("nonsmooth_optimizers/ns_BFGS.jl")
 include("nonsmooth_optimizers/VUalgo_utils.jl")
 include("nonsmooth_optimizers/VUalgo_qNewton.jl")
 include("nonsmooth_optimizers/VUalgo_esearch.jl")
+include("nonsmooth_optimizers/VUalgo_isearch.jl")
 include("nonsmooth_optimizers/VUalgo_bundle_qps.jl")
 include("nonsmooth_optimizers/VUalgo_bundle.jl")
 include("nonsmooth_optimizers/VUalgo.jl")

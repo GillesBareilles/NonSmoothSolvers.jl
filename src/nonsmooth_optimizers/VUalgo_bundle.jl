@@ -93,7 +93,6 @@ function bundlesubroutine!(bundle::Bundle{Tf}, pb, μ::Tf, x::Vector{Tf}, σ::Tf
         isglobalopt = (ϵ̂ + haveinv * norm(ŝ)^2 ≤ ϵglobal^2) || max(norm(ŝ)^2, μ/σ*ϵ̂) < max(1e-9, ϵglobal^2)
         if isglobalopt
             @info "Found optimal point: " Fp̂
-            @warn "missing part of code here (solution polish?)" # TODO ask Claudia
             subroutinestatus = :ApproxMinimizerFound
             break
         end

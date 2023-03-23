@@ -50,7 +50,7 @@ function qNewtonupdate!(H, pₖ, pₖ₋₁, sₖ, sₖ₋₁, U, k, curvmin, ν
                 Wds=H\ds
                 dsWds=ds'*Wds
 
-                if dsWds > (1-1e-8)*dpds
+                if dsWds > (1-1e-6)*dpds
                     # BFGS update
                     H .= H .- (Hndp*Hndp')/dpHndp .+ (ds*ds')/dpds
                 else
