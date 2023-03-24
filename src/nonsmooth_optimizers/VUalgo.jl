@@ -317,8 +317,7 @@ function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
 
     # NOTE 7. recovery from prox + Newton failure
     if !newtonproxsuccessful
-        @warn "Newton + prox failed, to be implemented" (Fpᶜₖ₊₁ ≤ F(pb, pₖ) - VU.m / (2μₖ) * norm(sᶜₖ₊₁)^2) (norm(sᶜₖ₊₁) ≤ max(1, sqrt(n))*norm(sᶜₖ₊₁))
-        @error "To be implemented"
+        @warn "Newton + prox failed" (Fpᶜₖ₊₁ ≤ F(pb, pₖ) - VU.m / (2μₖ) * norm(sᶜₖ₊₁)^2) (norm(sᶜₖ₊₁) ≤ max(1, sqrt(n))*norm(sᶜₖ₊₁))
 
         xₖ₊₁ = copy(pₖ)
         if performUstep
@@ -334,7 +333,6 @@ function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
             change_bundle_center!(bundle, xₖ₊₁, Fxₖ₊₁)
         end
 
-        println(" New prox point update")
         ϵᶜₖ₊₁, pᶜₖ₊₁, Fpᶜₖ₊₁, gpᶜₖ₊₁, sᶜₖ₊₁, Uᶜₖ₊₁, bundleinfo = bundlesubroutine!(state.bundle, pb, μₖ, xₖ₊₁, σₖ, VU.ϵ, haveinv; nullstepshist = state.nullstepshist)
         change_bundle_center!(bundle, pₖ, Fpₖ)
     end

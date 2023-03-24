@@ -5,8 +5,8 @@ function isearch(pb, p,fp,gp,bundle, phat,fphat,gphat, k,sigma,vound,mufirst; nu
     # TODO remove redundant point info from bundle point.
     # TODO add ! to fct name
 
-    printlev = 2
-    printlev > 0 && printstyled(" === qNewton step computation === \n", color = :orange)
+    printlev = 0
+    printlev > 0 && printstyled(" === qNewton step computation === \n", color = :light_yellow)
     printlev > 0 && @show p
     printlev > 0 && @show fp
     printlev > 0 && @show gp
@@ -18,7 +18,7 @@ function isearch(pb, p,fp,gp,bundle, phat,fphat,gphat, k,sigma,vound,mufirst; nu
     printlev > 0 && @show sigma
     printlev > 0 && @show vound
     printlev > 0 && @show mufirst
-    printlev > 0 && printstyled(" ============================== \n", color = :orange)
+    printlev > 0 && printstyled(" ============================== \n", color = :light_yellow)
 
     nsim = 15
 
@@ -96,14 +96,14 @@ function isearch(pb, p,fp,gp,bundle, phat,fphat,gphat, k,sigma,vound,mufirst; nu
         xls=xlo+tvu*xdiff;
 
         fxls, gxls = blackbox_oracle(pb, xls); nsim=nsim+1; nb=nb+1;
-        push!(nullstepshist, copy(xls)); toto(nullstepshist, loc = "esearch2")
+        push!(nullstepshist, copy(xls)); toto(nullstepshist, loc = "isearch")
 
         # [fxls,gxls,hessxls]=eval([simul,'(xls,Par)']); nsim=nsim+1; nb=nb+1;
 
         # at end put only the last one or two into bundle; possibly delete p?
         #        bundl=[bundl gxls]; bhessians(:,:,length(berlin)+1)=hessxls;
         #        berlin=[berlin; fp-fxls-gxls'*(p-xls)]; #%' centered at p
-        @printf("\n  %i(%i) dxlo %7.4e dxhi %7.4e tv %7.4e tu %7.4e fxls %7.4e muu %7.4e", k,nsim,dxlo,dxhi,tv,tu,fxls,muu);
+        (printlev > 2) && @printf("\n  %i(%i) dxlo %7.4e dxhi %7.4e tv %7.4e tu %7.4e fxls %7.4e muu %7.4e", k,nsim,dxlo,dxhi,tv,tu,fxls,muu);
         if fxls >= fxlo
             nxhi=nxhi+1; xhi=xls; xdiff=tvu*xdiff;
             fxhi=fxls; dxhi=gxls'*xdiff; dxlo=tvu*dxlo; xdiff2=(tvu^2)*xdiff2;
@@ -148,12 +148,12 @@ function isearch(pb, p,fp,gp,bundle, phat,fphat,gphat, k,sigma,vound,mufirst; nu
         # berlin=[berlin; fp-fxhi-gxhi'*(p-xhi)]; # centered at p
     end
 
-    @printf("\n  %i(%i) dxlo %7.4e dxhi %7.4e tv %7.4e tu %7.4e fxls %7.4e muu %7.4e", k,nsim,dxlo,dxhi,tv,tu,fxls,muu);
+    (printlev > 2) && @printf("\n  %i(%i) dxlo %7.4e dxhi %7.4e tv %7.4e tu %7.4e fxls %7.4e muu %7.4e", k,nsim,dxlo,dxhi,tv,tu,fxls,muu);
     #fprintf('\n  %i(%i) fxlo %7.4e vtest %7.4e vound %7.4e muu %7.4e muave %7.4e nb %i', k,nsim,fxlo,vtest,vound,muu,muave,nb);
-    @printf("\n  %i(%i) fxlo %7.4e vtest %7.4e vound %7.4e muu %7.4e muave %7.4e mubig %7.4e\n", k,nsim,fxlo,vtest,vound,muu,muave,mubig);
+    (printlev > 2) && @printf("\n  %i(%i) fxlo %7.4e vtest %7.4e vound %7.4e muu %7.4e muave %7.4e mubig %7.4e\n", k,nsim,fxlo,vtest,vound,muu,muave,mubig);
 
 
-    printlev > 0 && printstyled(" ============================== \n", color = :orange)
+    printlev > 0 && printstyled(" ============================== \n", color = :light_yellow)
     printlev > 0 && @show xlo
     printlev > 0 && @show fxlo
     printlev > 0 && @show bundle
@@ -162,7 +162,7 @@ function isearch(pb, p,fp,gp,bundle, phat,fphat,gphat, k,sigma,vound,mufirst; nu
     # printlev > 0 && @show muu1
     printlev > 0 && @show muave
     # printlev > 0 && @show mubig
-    printlev > 0 && printstyled(" === qNewton step computation end \n", color = :orange)
+    printlev > 0 && printstyled(" === qNewton step computation end \n", color = :light_yellow)
 
     # TODO remove muu1, muubig computation
     return xlo,fxlo,muave
