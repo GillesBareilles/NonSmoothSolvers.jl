@@ -89,7 +89,7 @@ function display_logs_post(os, gs::VUbundle)
 end
 
 
-function toto(nullstepshist::MutableLinkedList{T}; loc = "") where T
+function toto(nullstepshist; loc = "")
     # println("---- len: ", length(nullstepshist))
     if length(nullstepshist) > 2 && nullstepshist[end] in nullstepshist[1:end-1]
         @show loc
@@ -100,7 +100,7 @@ function toto(nullstepshist::MutableLinkedList{T}; loc = "") where T
     end
     return
 end
-toto(state; loc = "") = toto(state.nullstepshist; loc)
+toto(state::VUbundleState; loc = "") = toto(state.nullstepshist; loc)
 
 #
 ### VUbundle method

@@ -38,7 +38,7 @@ end
             center
         )
 
-        ϵᶜₖ₊₁, pᶜₖ₊₁, sᶜₖ₊₁, Uᶜₖ₊₁, hist = NSS.bundlesubroutine!(bundle, pb, μₖ, center, σₖ, ϵ, haveinv)
+        ϵᶜₖ₊₁, pᶜₖ₊₁, Fpᶜₖ₊₁, gpᶜₖ₊₁, sᶜₖ₊₁, Uᶜₖ₊₁, hist = NSS.bundlesubroutine!(bundle, pb, μₖ, center, σₖ, ϵ, haveinv)
 
         @test isapprox(ϵᶜₖ₊₁, 3.5137032350250452e-02)
         @test isapprox(pᶜₖ₊₁, [7.9547668694123619e-01,1.4595283090383715e-01])
@@ -46,7 +46,6 @@ end
         @test isapprox(Uᶜₖ₊₁, [9.1898612115550682e-01,3.9428987956014822e-01])
 
         fais, erlin = build_faiserlin(bundle)
-        @show fais, erlin
 
 
         @test isapprox(erlin, [0.0000000000000000e+00,9.6325039304742766e-01,8.1624433582331790e-01])
@@ -71,7 +70,7 @@ end
             center
         )
 
-        ϵᶜₖ₊₁, pᶜₖ₊₁, sᶜₖ₊₁, Uᶜₖ₊₁, hist = NSS.bundlesubroutine!(bundle, pb, μₖ, center, σₖ, ϵ, haveinv)
+        ϵᶜₖ₊₁, pᶜₖ₊₁, Fpᶜₖ₊₁, gpᶜₖ₊₁, sᶜₖ₊₁, Uᶜₖ₊₁, hist = NSS.bundlesubroutine!(bundle, pb, μₖ, center, σₖ, ϵ, haveinv)
 
         @test isapprox(ϵᶜₖ₊₁, 1.1318195110213538e-06)
         @test isapprox(pᶜₖ₊₁, [1.3436738181096714e-02,4.4571070126370183e-05])
@@ -99,7 +98,7 @@ end
             center
         )
 
-        ϵᶜₖ₊₁, pᶜₖ₊₁, sᶜₖ₊₁, Uᶜₖ₊₁, hist = NSS.bundlesubroutine!(bundle, pb, μₖ, center, σₖ, ϵ, haveinv)
+        ϵᶜₖ₊₁, pᶜₖ₊₁, Fpᶜₖ₊₁, gpᶜₖ₊₁, sᶜₖ₊₁, Uᶜₖ₊₁, hist = NSS.bundlesubroutine!(bundle, pb, μₖ, center, σₖ, ϵ, haveinv)
 
         @test isapprox(ϵᶜₖ₊₁, 1.8408188198065270e-09)
         @test isapprox(pᶜₖ₊₁, [-1.8974380079133488e-03,8.9914754115239052e-07])

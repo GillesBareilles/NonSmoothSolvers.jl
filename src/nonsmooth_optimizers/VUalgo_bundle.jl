@@ -6,7 +6,6 @@ $\arg\min_z F(z) + 0.5 * μ \|z - x\|^2$.
 Return ...
 """
 function bundlesubroutine!(bundle::Bundle{Tf}, pb, μ::Tf, x::Vector{Tf}, σ::Tf, ϵglobal, haveinv; printlev=0, testlevel=0, nullstepshist = []) where Tf
-    printlev = 0
 
     (printlev > 2) && printstyled(" === Bundle subroutine computation === \n", color = :blue)
     (printlev > 2) && @show μ, σ, haveinv
