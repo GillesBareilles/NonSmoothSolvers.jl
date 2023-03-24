@@ -176,7 +176,6 @@ function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
 
         νlow = ν
 
-        # TODO make this in place for H
         du, haveinv, state.kase = qNewtonupdate!(state.H, pₖ, pₖ₋₁, sₖ, sₖ₋₁, Uₖ, state.k, VU.curvmin, ν, νlow, μₖ, state.kase)
 
         (printlev > 2) && @show du
@@ -322,7 +321,7 @@ function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
         xₖ₊₁ = copy(pₖ)
         if performUstep
             # NOTE Linesearch on line pₖ → pᶜₖ₊₁ to get an xₖ₊₁ such that F(xₖ₊₁) ≤ F(pₖ)
-            xₖ₊₁, Fxₖ₊₁, muave = isearch(pb, pₖ, Fpₖ, gpₖ, bundle, pᶜₖ₊₁, Fpᶜₖ₊₁, gpᶜₖ₊₁, state.k, σₖ, vound, mufirst; nullstepshist = state.nullstepshist)
+            xₖ₊₁, Fxₖ₊₁, muave = isearch!(bundle, pb, pₖ, Fpₖ, gpₖ, pᶜₖ₊₁, Fpᶜₖ₊₁, gpᶜₖ₊₁, state.k, vound, mufirst; nullstepshist = state.nullstepshist)
 
             # NOTE adjust μ
             # TODO determine importance of parameter `run`
