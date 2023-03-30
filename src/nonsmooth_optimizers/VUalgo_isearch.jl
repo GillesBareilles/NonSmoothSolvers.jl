@@ -35,27 +35,42 @@ function isearch!(bundle::Bundle{Tf}, pb,
         throw(error("Reached this part of code, deemed unreachable.."))
     end
 
-    if fphat >= fp # ? is xhi needed; yes if bundle only 1 or 2 more
-        xhi=phat; gxhi=gphat; xlo=p; gxlo=gp; xdiff=xhi-xlo; dxlo=gp'*xdiff;
-        fxhi=fphat; fxlo=fp; dxhi=gphat'*xdiff;
+    # NOTE set x high and x low
+    if fphat >= fp
+        xhi, fxhi, gxhi = phat, fphat, gphat
+        xlo, fxlo, gxlo = p, fp, gp
     else
-        xhi=p; gxhi=gp; xlo=phat; gxlo=gphat; xdiff=xhi-xlo;
-        fxhi=fp; fxlo=fphat; dxhi=gp'*xdiff; dxlo=gphat'*xdiff;
+        xhi, fxhi, gxhi = p, fp, gp
+        xlo, fxlo, gxlo = phat, fphat, gphat
     end
+    xdiff=xhi-xlo
+    dxlo=dot(gxlo, xdiff)
+    dxhi=dot(gxhi, xdiff)
 
-    d2=dxhi-dxlo; xdiff2=xdiff'*xdiff; muu=d2/xdiff2;
-    nave=0; muave=muu
-    lstop=0; ldescent=0; fxls=fxhi; nxhi=0; nxlo=0;
+    # NOTE Jump linesearch in some cases
+    muu = (dxhi-dxlo) / norm(xdiff)^2
+    muave=muu
+    performlinesearch = true
     if dxlo >= 0
-        tv=d2; tu=-1.; vtest=vound; lstop=1; muave=min(muave,mufirst)
-    end # why? lower bound too?
-    if dxlo < 0 && dxhi <= 0
-        xlo=xhi; tv=d2; tu=-1.; vtest=vound; lstop=1;
+        # No point in doing linesearch: xdiff increases fun vals from  point xlow
         muave=min(muave,mufirst)
+        performlinesearch = false
+    elseif dxlo < 0 && dxhi <= 0
+        # Function values decrease from xlo and xhigh both. Seems unlikely with convex functions.
+        # NOTE: ask Claudia
+        xlo=xhi;
+        muave=min(muave,mufirst)
+        performlinesearch = false
     end
 
-    while lstop==0
+    # NOTE run interpolation linesearch
+    d2=dxhi-dxlo; #muu=d2/xdiff2;
+    fxls=fxhi; nxhi=0; nxlo=0;
+    nave=0
+    ldescent=0;
+    while performlinesearch
         tv=(fxlo-fxhi+dxhi)/(dxhi-dxlo); # ? max(0, ?
+        # NOTE ask Claudia what model this tv minimizes
         if -dxlo >= tv*d2
             tvu=tv; tu=1.;
         else
@@ -65,44 +80,57 @@ function isearch!(bundle::Bundle{Tf}, pb,
         if ldescent == 0
             ttest=tv
         end
-        vtest=ttest*(fxhi-fxlo-dxlo); muu=d2/xdiff2;
+        vtest=ttest*(fxhi-fxlo-dxlo); muu=d2/norm(xdiff)^2;
         if (vtest < vound)
-            lstop=2
-        end
-        if lstop == 2 && (tu < tv && ldescent > 0)
-            break
+            performlinesearch = false
+            if tu < tv && ldescent > 0
+                break
+            end
         end
         nave=nave+1; muave=((nave-1)*muave+muu)/nave
-        xls=xlo+tvu*xdiff;
+        xls = xlo + tvu * xdiff
 
         fxls, gxls = blackbox_oracle(pb, xls)
         push!(nullstepshist, copy(xls)); toto(nullstepshist, loc = "isearch")
 
         (printlev > 2) && @printf("\n  %i(%i) dxlo %7.4e dxhi %7.4e tv %7.4e tu %7.4e fxls %7.4e muu %7.4e", k,nsim,dxlo,dxhi,tv,tu,fxls,muu);
         if fxls >= fxlo
+            # Update xhi as xls
             nxhi=nxhi+1;
-            xhi=xls; xdiff=tvu*xdiff;
-            fxhi=fxls; dxhi=gxls'*xdiff; dxlo=tvu*dxlo; xdiff2=(tvu^2)*xdiff2;
-            gxhi=gxls;
+            xhi, fxhi, gxhi = xls, fxls, gxls
+
+            dxhi = dot(gxls, xdiff)
+            dxlo = tvu*dxlo;
+            xdiff = tvu*xdiff
+
             if ldescent==0
                 d2=dxhi-dxlo;
             else
                 d2=tvu*d2;
             end
         else
-            nxlo=nxlo+1; ldescent=ldescent+1; # fxls < fxlo
-            dxls=gxls'*xdiff; tvucomp= 1.0 - tvu;#'
+            # Update xlo as xls, or xlo, xhi as xls, xlo
+            nxlo=nxlo+1; ldescent += 1
+            dxls = dot(gxls, xdiff)
+            tvucomp= 1.0 - tvu
             if dxls <= 0
-                xlo=xls;  # xhi,fxhi are same
-                fxlo=fxls; xdiff2=(tvucomp^2)*xdiff2; xdiff=tvucomp*xdiff;
-                gxlo=gxls; #hessxlo=hessxls;
-                dxold=tvucomp*dxlo; dxlo=tvucomp*dxls; dxhi=tvucomp*dxhi;
+                xlo, fxlo, gxlo = xls, fxls, gxls
+
+                dxhi=tvucomp*dxhi
+                dxlo=tvucomp*dxls
+                xdiff=tvucomp*xdiff
+
+                dxold=tvucomp*dxlo
                 d2=(dxlo-dxold)*(tvucomp/tvu);
             else
-                xhi=xlo; xlo=xls;  # dxls > 0
-                fxhi=fxlo; fxlo=fxls; xdiff=-tvu*xdiff; xdiff2=(tvu^2)*xdiff2;
-                gxhi=gxlo; gxlo=gxls; #hessxhi=hessxlo; hessxlo=hessxls;
-                dxold=-tvu*dxhi; dxhi=-tvu*dxlo; dxlo=-tvu*dxls;
+                xhi, fxhi, gxhi = xlo, fxlo, gxlo
+                xlo, fxlo, gxlo = xls, fxls, gxls
+
+                dxhi=-tvu*dxlo
+                dxlo=-tvu*dxls
+                xdiff = -tvu*xdiff
+
+                dxold=-tvu*dxhi
                 d2=(dxlo-dxold)*(tvu/tvucomp); # check somehow
             end
         end
