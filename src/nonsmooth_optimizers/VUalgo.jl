@@ -213,7 +213,7 @@ function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
         if performUstep
             xᶜₖ₊₁ = pₖ + du
             Fxᶜₖ₊₁, gxᶜₖ₊₁ = blackbox_oracle(pb, xᶜₖ₊₁)
-            push!(state.nullstepshist, copy(xᶜₖ₊₁)); toto(state; loc = "aa")
+            push!(state.nullstepshist, copy(xᶜₖ₊₁))
             errxᶜₖ₊₁ = F(pb, pₖ) - Fxᶜₖ₊₁ + dot(gxᶜₖ₊₁, xᶜₖ₊₁ - pₖ) # linearization error, centered at p
 
 
@@ -263,7 +263,7 @@ function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
 
                 (printlev > 3) && @show bundle
                 empty!(bundle.bpts)
-                push!(bundle.bpts, BundlePoint(-1., gxᶜₖ₊₁, errxᶜₖ₊₁, [-1.])); toto(state; loc = "uu")
+                push!(bundle.bpts, BundlePoint(-1., gxᶜₖ₊₁, errxᶜₖ₊₁, [-1.]))
                 (printlev > 3) && @show bundle
 
                 # faisp=[gxc];

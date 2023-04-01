@@ -109,7 +109,6 @@ function isearch!(
 
         fxls, gxls = blackbox_oracle(pb, xls)
         push!(nullstepshist, copy(xls))
-        toto(nullstepshist, loc = "isearch")
 
         (printlev > 2) && @printf(
             "\n  %i(%i) dxlo %7.4e dxhi %7.4e tv %7.4e tu %7.4e fxls %7.4e muu %7.4e",

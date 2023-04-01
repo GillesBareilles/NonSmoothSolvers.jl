@@ -60,7 +60,7 @@ function bundlesubroutine!(bundle::Bundle{Tf}, pb, μ::Tf, x::Vector{Tf}, σ::Tf
 
         printlev > 3 && println(" xxx augmenting bundle")
         Fp̂, gp̂ = blackbox_oracle(pb, p̂)
-        push!(nullstepshist, copy(p̂)); toto(nullstepshist, loc = "bundle")
+        push!(nullstepshist, copy(p̂))
         push!(bundle.bpts, BundlePoint(
             Fp̂,
             gp̂,
