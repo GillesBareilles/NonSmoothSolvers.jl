@@ -7,8 +7,11 @@ Return ...
 """
 function bundlesubroutine!(bundle::Bundle{Tf}, pb, μ::Tf, x::Vector{Tf}, σ::Tf, ϵglobal, haveinv; printlev=0, testlevel=0, nullstepshist = []) where Tf
 
-    (printlev > 2) && printstyled(" === Bundle subroutine computation === \n", color = :blue)
-    (printlev > 2) && @show μ, σ, haveinv
+    printlev = 3
+    (printlev > 2) && printstyled(" +++ Bundle subroutine computation +++ \n", color = :blue)
+    (printlev > 2) && @show μ
+    (printlev > 2) && @show σ
+    (printlev > 2) && @show haveinv
     (printlev > 2) && @show x
 
     ᾱ = nothing
@@ -121,12 +124,12 @@ function bundlesubroutine!(bundle::Bundle{Tf}, pb, μ::Tf, x::Vector{Tf}, σ::Tf
 
     Û = get_Uorthonormalbasis(bundle, ᾱ, ᾱ_nullcoords)
 
-    (printlev > 2) && printstyled(" =====================\n", color = :blue)
+    (printlev > 2) && printstyled(" +++++++++++++++++++++\n", color = :blue)
     (printlev > 2) && @show p̂
     (printlev > 2) && @show ŝ
     (printlev > 2) && @show ϵ̂
     (printlev > 2) && @show Û
-    (printlev > 2) && printstyled(" === Bundle subroutine computation end\n", color = :blue)
+    (printlev > 2) && printstyled(" +++ Bundle subroutine computation end\n", color = :blue)
     return ϵ̂, p̂, Fp̂, gp̂, ŝ, Û, (; nnullsteps = it, subroutinestatus)
 end
 

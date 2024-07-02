@@ -16,3 +16,12 @@ NonSmoothSolvers.VUbundleState
 ```@docs
 NonSmoothSolvers.qNewtonupdate!
 ```
+
+## Questions
+
+- `vound` meaning
+
+### isearch
+
+- `-dxlo / d2` meaning
+- `ldescent` meaning

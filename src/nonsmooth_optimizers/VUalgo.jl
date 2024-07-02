@@ -106,7 +106,6 @@ toto(state::VUbundleState; loc = "") = toto(state.nullstepshist; loc)
 ### VUbundle method
 #
 function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
-    printlev = 0
 
     pₖ = state.p
     Fpₖ = state.Fp
@@ -139,6 +138,7 @@ function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
     n = size(state.p, 1)
 
 
+    printlev = 2
     local bundleinfo = (;)
 
     (printlev > 0) && printstyled("\n\n))) iteration ", state.k, "\n", color = :green)
@@ -152,7 +152,7 @@ function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
     (printlev > 1) && println("σₖ     = ", σₖ)
     (printlev > 1) && println("kase   = ", state.kase)
     (printlev > 1) && display(bundle)
-    (printlev > 1) && @show nₖ
+    (printlev > 1) && println("nₖ     = ", nₖ)
 
     # NOTE missing stuff here
 

@@ -83,8 +83,18 @@ function esearch!(bundle::Bundle{Tf},
             fxc = fxtrap
             gxc .= gxtrap
             erxc = erxtrap
+
+            printstyled("xxxxx\n")
         end
     end # of while not wolfe and of extrapolation
+
+    if esearch == 1
+        @show t, dt
+        printstyled("---->\n", color=:yellow)
+        @show xc, fxc, gxc, erxc
+        @show xtrap, fxtrap, gxtrap, erxtrap
+        printstyled("<----\n", color=:yellow)
+    end
 
     ## NOTE prepare for possible interpolation
     # set [xlo, xhi]
