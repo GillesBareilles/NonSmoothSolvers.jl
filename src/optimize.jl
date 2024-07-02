@@ -172,14 +172,6 @@ function optimize!(
             display_logs(optimizationstate, optimizer)
         end
 
-        # Check convergence
-        @timeit_debug "CV check" begin
-            converged = (iterationstatus == problem_solved)
-            for cvchecker in optparams.cvcheckers
-                converged = converged || has_converged(cvchecker, pb, optimizer, optimizationstate)
-            end
-        end
-
         stopped_by_updatefailure = (iterationstatus == iteration_failed)
         stopped_by_iterationpbsolved = (iterationstatus == problem_solved)
         stopped_by_time_limit = time_count > optparams.time_limit
