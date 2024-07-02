@@ -10,11 +10,23 @@ function esearch!(bundle::Bundle{Tf},
                   printlev = 0, nullstepshist = []) where Tf
     nsrch = 0
 
-    xᶜₖ₊₁, pₖ = xc, p
-    gxᶜₖ₊₁ = gxc
+    printlev = 2
+    printlev > 0 &&
+        printstyled(" xxx esearch xxx \n", color = :magenta)
+    printlev > 0 && @show xc
+    printlev > 0 && @show gxc
+    printlev > 0 && @show p
+    printlev > 0 && @show fp
+    printlev > 0 && @show gp
+    printlev > 0 && @show k
+    printlev > 0 && @show μ
+    printlev > 0 && @show σ
+    printlev > 0 && @show sₖ
+    printlev > 0 && @show bundle
+    printlev > 0 && printstyled(" xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx \n", color = :magenta)
 
-    dxc = xᶜₖ₊₁ - pₖ
-    gxcdxc = dot(gxᶜₖ₊₁, dxc)
+    dxc = xc - p
+    gxcdxc = dot(gxc, dxc)
 
     ### extrapolation line search if wolfe test not satisfied at xc
     esearch=0
@@ -24,7 +36,6 @@ function esearch!(bundle::Bundle{Tf},
     nxhi=0
     # in case extrapolation drops p from bundle
 
-    nsim = 0
     vtest = -1
 
     nave = Tf(0)
@@ -37,77 +48,112 @@ function esearch!(bundle::Bundle{Tf},
     vound = Tf(0)
 
 
+    xlo, fxlo, gxlo, erxlo = similar(p), Tf(0), similar(gp), Tf(0)
+    xhi, fxhi, gxhi, erxhi = similar(p), Tf(0), similar(gp), Tf(0)
+
+
     ##%#    if gxcdxc >= wolfetest    # xc is OK
     gxtdxc=gxcdxc
     dt=1.0
     t=1.0
-    mextrap=4.0
-    mextra=1.0
 
     # NOTE extrapolate: find dt > 1 : xtrap = xc + dt * dxc meets wolfe
+    # note that this implicitly changes the value of xc
     while gxtdxc <  wolfetest
-        esearch=1;
-        nsrch=nsrch+1; # extrapolate
-        d2=gxcdxc-gxoldxc;
+        esearch=1
+        nsrch += 1
 
-        # BUG this is fishy, always *4
-        if -gxcdxc > d2*mextrap
-            dt=mextrap*dt
-        else
-            dt=max((-gxcdxc/d2),mextra)*dt
-        end
+        # NOTE dtcand minimizes t -> q(0) + q'(0) + 0.5t² (q'(1) - q'(0)),
+        # the quadratic that interpolates f at xlo (order 0 and 1), and at xhi (order 1 only)
+        dtcand = -gxcdxc/(gxcdxc-gxoldxc)
+        dt = max(1.0, min(4.0, dtcand))
         xtrap .= xc .+ dt*dxc
-        t=t+dt
+        t += dt
 
         fxtrap, gxtrap = blackbox_oracle(pb, xtrap)
         push!(nullstepshist, copy(xtrap))
 
-        gxtdxc = gxtrap'*dxc
+        gxtdxc = dot(gxtrap, dxc)
         erxtrap = fp-fxtrap+gxtdxc*t # center at p
 
         if gxtdxc < wolfetest
             gxoldxc = gxcdxc
             gxcdxc = gxtdxc
             xc .= xtrap
-            fxc=fxtrap
+            fxc = fxtrap
             gxc .= gxtrap
             erxc = erxtrap
-            # hessxc=hessxtrap
         end
     end # of while not wolfe and of extrapolation
 
     ## NOTE prepare for possible interpolation
-    # set [xhi, xlo] as an interval ok with Wolfe
+    # set [xlo, xhi]
     if esearch==1
         nxhi=nxhi+1
         if fxtrap ≤ fxc
-            fxhi=fxc;    xdiff=xc-xtrap;
-            xlo=xtrap; fxlo=fxtrap; dxlo=-dt*gxtdxc; dxhi=-dt*gxcdxc;
+            xhi .= xc
+            fxhi = fxc
+            gxhi .= gxc
+            erxhi = erxc
 
-            erxhi=erxc; gxhi=gxc; #hessxhi=hessxc;
-            erxlo=erxtrap; gxlo=gxtrap; #hessxlo=hessxtrap;
+            xlo .= xtrap
+            fxlo = fxtrap
+            gxlo .= gxtrap
+            erxlo = erxtrap
+
+            dxlo=-dt*gxtdxc
+            dxhi=-dt*gxcdxc
         else
-            fxhi=fxtrap; xdiff=xtrap-xc;
-            xlo=xc;    fxlo=fxc;    dxlo= dt*gxcdxc; dxhi= dt*gxtdxc;
+            xhi .= xtrap
+            fxhi = fxtrap
+            gxhi .= gxtrap
+            erxhi = erxtrap
 
-            erxhi=erxtrap; gxhi=gxtrap;# hessxhi=hessxtrap;
-            erxlo=erxc; gxlo=gxc; #hessxlo=hessxc;
+            xlo .= xc
+            fxlo = fxc
+            gxlo .= gxc
+            erxlo = erxc
+
+            dxlo= dt*gxcdxc;
+            dxhi= dt*gxtdxc;
         end
     else # esearch=0
         if fxc ≤ fp
-            fxhi=fp; xdiff=p-xc;
-            erxhi=0; gxhi=gp; #hessxhi=hess;
-            xlo=xc; fxlo=fxc; dxlo=-gxcdxc; dxhi=-gp'*dxc;
-            erxlo=erxc; gxlo=gxc; #hessxlo=hessxc;
+            xhi .= p
+            fxhi = fp
+            gxhi .= gp
+            erxhi = Tf(0)
+
+            xlo .= xc
+            fxlo = fxc
+            gxlo .= gxc
+            erxlo = erxc
+
+
+            dxlo=-gxcdxc;
+            dxhi=-gp'*dxc;
         else
-            fxhi=fxc; xdiff=xc-p; # fxc>fp
-            erxhi=erxc; gxhi=gxc; #hessxhi=hessxc;
-            xlo=p; fxlo=fp; dxlo=gp'*dxc; dxhi=gxcdxc;
-            erxlo=Tf(0); gxlo=gp; #hessxlo=hess;
+            xhi .= xc
+            fxhi = fxc
+            gxhi .= gxc
+            erxhi = erxc
+
+            xlo .= p
+            fxlo = fp
+            gxlo .= gp
+            erxlo = Tf(0)
+
+            dxlo=gp'*dxc;
+            dxhi=gxcdxc;
         end
     end
-    d2=dxhi-dxlo; xdiff2=norm(xdiff)^2; muu=d2/xdiff2; mufirst=muu;
-    nave=0; muave=muu;
+    xdiff = xhi - xlo
+    d2 = dxhi - dxlo;
+    xdiff2=norm(xdiff)^2;
+    muu=d2/xdiff2;
+    mufirst=muu;
+    nave=0;
+    muave=muu;
 
     @assert !isnan(muu) # trouble if xc == p
 
@@ -136,7 +182,9 @@ function esearch!(bundle::Bundle{Tf},
                 tu=-dxlo/d2; tvu=tu;
             end
             ttest=tvu; # if ldescent == 0, ttest=tv; end
-            vtest=ttest*(fxhi-fxlo-dxlo); muu=d2/xdiff2; muubig=max(muubig,muu);
+            vtest=ttest*(fxhi-fxlo-dxlo);
+            muu=d2/xdiff2;
+            muubig=max(muubig,muu);
             # ? nave,muave here ?
             if (vtest < vound)
                 lstop=2
@@ -144,10 +192,10 @@ function esearch!(bundle::Bundle{Tf},
             if lstop == 2 && (tu < tv)
                 break
             end
-            #     if lstop == 2 & (tu < tv & ldescent > 0), break; end # ? or tv<=tu?
-            nave=nave+1; muave=((nave-1)*muave+muu)/nave;
+            nave=nave+1;
+            muave=((nave-1)*muave+muu)/nave;
             #fprintf('\n  %i(%i) dxlo %7.4e dxhi %7.4e tv %7.4e tu %7.4e muu %7.4e muubig %7.4e',...
-            #                     k,nsim,dxlo,dxhi,tv,tu,muu,muubig),
+            #                     k,dxlo,dxhi,tv,tu,muu,muubig),
             if k>1
                 break
             end
@@ -158,11 +206,21 @@ function esearch!(bundle::Bundle{Tf},
             push!(nullstepshist, copy(xls))
 
             erxls=fp-fxls-gxls'*(p-xls); # gxls'* repeated below
-            #fprintf('\n  %i(%i) dxlo %7.4e dxhi %7.4e tv %7.4e tu %7.4e fxls %7.4e muu %7.4e muubig %7.4e', k,nsim,dxlo,dxhi,tv,tu,fxls,muu,muubig);
+            #fprintf('\n  %i dxlo %7.4e dxhi %7.4e tv %7.4e tu %7.4e fxls %7.4e muu %7.4e muubig %7.4e', k,dxlo,dxhi,tv,tu,fxls,muu,muubig);
             if fxls >= fxlo
-                xhi=xls; xdiff=tvu*xdiff; xdiff2=(tvu^2)*xdiff2;
-                fxhi=fxls; dxhi=gxls'*xdiff; dxlo=tvu*dxlo; nxhi=nxhi+1;
-                erxhi=erxls; gxhi=gxls; #hessxhi=hessxls;
+                # Update xhi as xls
+                nxhi = nxhi + 1
+                xhi .= xls
+                fxhi = fxls
+                gxhi .= gxls
+
+                dxhi = dot(gxls, xdiff)
+                dxlo = tvu * dxlo
+                xdiff = tvu * xdiff
+
+                xdiff2=(tvu^2)*xdiff2;
+                erxhi=erxls;
+
                 if ldescent==0
                     d2=dxhi-dxlo;
                 else
@@ -172,25 +230,40 @@ function esearch!(bundle::Bundle{Tf},
                 ldescent=ldescent+1; # fxls < fxlo
                 dxls=gxls'*xdiff; tvucomp= 1.0-tvu;
                 if dxls <= 0
-                    xlo=xls;   # xhi,fxhi are same
-                    fxlo=fxls; xdiff2=(tvucomp^2)*xdiff2; xdiff=tvucomp*xdiff;
-                    dxold=tvucomp*dxlo; dxlo=tvucomp*dxls; dxhi=tvucomp*dxhi;
+                    xlo .= xls
+                    fxlo = fxls
+                    gxlo .= gxls
+
+                    xdiff2=(tvucomp^2)*xdiff2;
+                    xdiff=tvucomp*xdiff;
+                    dxold=tvucomp*dxlo;
+                    dxlo=tvucomp*dxls;
+                    dxhi=tvucomp*dxhi;
                     d2=(dxlo-dxold)*(tvucomp/tvu); # both d2s need more checking ?
-                    erxlo=erxls; gxlo=gxls;# hessxlo=hessxls;
+                    erxlo=erxls;
                 else
-                    xhi=xlo; xlo=xls; nxhi=nxhi+1; # dxls > 0
-                    fxhi=fxlo; fxlo=fxls; xdiff=-tvu*xdiff; xdiff2=(tvu^2)*xdiff2;
-                    erxhi=erxlo; gxhi=gxlo; #hessxhi=hessxlo;
-                    erxlo=erxls; gxlo=gxls; #hessxlo=hessxls;
-                    dxold=-tvu*dxhi; dxhi=-tvu*dxlo; dxlo=-tvu*dxls;
+                    xlo .= xls
+                    fxlo = fxls
+                    gxlo .= gxls
+                    xhi .= xlo
+                    fxhi = fxlo
+                    gxhi .= gxlo
+
+                    nxhi=nxhi+1; # dxls > 0
+                    xdiff=-tvu*xdiff;
+                    xdiff2=(tvu^2)*xdiff2;
+                    erxhi=erxlo;
+                    erxlo=erxls;
+                    dxold=-tvu*dxhi;
+                    dxhi=-tvu*dxlo;
+                    dxlo=-tvu*dxls;
                     d2=(dxlo-dxold)*(tvu/tvucomp); # checked well enough ?
                 end
             end
-        end # while of xc search inner loop
-        (printlev > 0) && @printf("\n  %i(%i) dxlo %7.4e dxhi %7.4e tv %7.4e tu %7.4e fxls %7.4e muu %7.4e", k,nsim,dxlo,dxhi,tv,tu,fxls,muu);
-        (printlev > 0) && @printf("\n  %i(%i) fxlo %7.4e vtest %7.4e vound %7.4e muu %7.4e muave %7.4e nb %i", k,nsim,fxlo,vtest,vound,muu,muave,nb);
-    end # of interpolation
-    ########
+        end
+        (printlev > 0) && @printf("\n  %i dxlo %7.4e dxhi %7.4e tv %7.4e tu %7.4e fxls %7.4e muu %7.4e", k,dxlo,dxhi,tv,tu,fxls,muu);
+        (printlev > 0) && @printf("\n  %i fxlo %7.4e vtest %7.4e vound %7.4e muu %7.4e muave %7.4e nb %i", k,fxlo,vtest,vound,muu,muave,nb);
+    end
 
     if k==1 || esearch>0 # if esearch > 0 | isearch > 0
         xc=xlo; fxc=fxlo; gxc=gxlo; erxc=erxlo; # center at p
@@ -199,16 +272,23 @@ function esearch!(bundle::Bundle{Tf},
             muave=μ
         end # so that mu will be unchanged mu=muave
     end
-    # in future if dropp == 1, overwrite last col of fais if p is there
-    # and  consider size(fais,2)?
 
     push!(bundle.bpts, BundlePoint(-1., gxc, erxc, [-1., -1.]))
-    # erlin=[erlin;erxc]; fais=[fais gxc]; # check for 0 in last erlin col?
 
     if nxhi > 0
-        # erlin=[erlin;erxhi]; fais=[fais gxhi];
         push!(bundle.bpts, BundlePoint(-1., gxhi, erxhi, [-1., -1.]))
     end
+
+    printlev > 0 && printstyled(" xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx \n", color = :magenta)
+    printlev > 0 && @show xc
+    printlev > 0 && @show fxc
+    printlev > 0 && @show gxc
+    printlev > 0 && @show erxc
+    printlev > 0 && @show muave
+    printlev > 0 && @show mufirst
+    printlev > 0 && @show nsrch
+    printlev > 0 &&
+        printstyled(" xxx esearch end \n", color = :magenta)
 
     return xc, fxc, gxc, erxc, muave, mufirst, nsrch
 end
