@@ -54,22 +54,41 @@ end
 end
 
 
+#
+### Logging
+#
 abstract type AbstractTraceStrategy end
 struct DefaultTraceStrategy <: AbstractTraceStrategy end
 
+# TODO: passer cette structs en NamedTuple
 struct DefaultTraceItem{Tx, Tfx}
     x::Tx
     Fx::Tfx
     it::Int64
     time::Float64
 end
-function build_inittrace(::DefaultTraceStrategy, state)
-    return DefaultTraceItem(get_minimizer_candidate(state), get_minval_candidate(state), 0, 0.0)
-end
-function build_traceitem(::DefaultTraceStrategy, o, state, iteration, time_count)
+function build_traceitem(::DefaultTraceStrategy, state, iteration, time_count)
     return DefaultTraceItem(get_minimizer_candidate(state), get_minval_candidate(state), iteration, time_count)
 end
-# TODO: passer les structs en NamedTuple
+
+#
+### Printing
+#
+function display_logs_header(optimizer)
+    print("it.   time      F(x)                     ")
+    display_logs_header_post(optimizer)
+    nothing
+end
+
+function display_logs_pre(state, iteration, time_count)
+    @printf("%4i  %.1e  % .16e   ", iteration, time_count, get_minval_candidate(state))
+    nothing
+end
+function display_logs(state, updateinformation, iteration, time_count)
+    display_logs_pre(state, iteration, time_count)
+    display_logs_post(state, updateinformation, iteration, time_count)
+    nothing
+end
 
 
 """
@@ -84,7 +103,7 @@ function optimize(
     tracestrategy = DefaultTraceStrategy(),
 ) where {O<:Optimizer, Tx}
     state = initial_state(optimizer, copy(initial_x), pb)
-    inittrace = build_inittrace(tracestrategy, state)
+    inittrace = build_traceitem(tracestrategy, state, 0, 0.0)
     return optimize!(state, pb, optimizer, optparams, tracestrategy, inittrace)
 end
 
@@ -137,13 +156,16 @@ function optimize!(
     stopped_by_iterationpbsolved = false
     stopped_by_time_limit = false
 
-    show_trace && print_header(optimizer)
-    show_trace && display_logs_header(optimizer, pb)
+    if show_trace
+        print_header(optimizer)
+        display_logs_header(optimizer)
+        display_logs_pre(state, iteration, time_count)
+        print("\n")
+    end
 
     tr = Deque{Ttr}()
-    pushfirst!(tr, inittrace)
+    push!(tr, inittrace)
 
-    show_trace && display_logs(state, iteration, time_count)
 
     while !converged && !stopped && iteration < iterations_limit
         iteration += 1
@@ -154,8 +176,8 @@ function optimize!(
         time_count += time() - _time
 
         # @timeit_debug "build_optimstate" begin
-        traceitem = build_traceitem(tracestrategy, optimizer, state, iteration, time_count)
-        pushfirst!(tr, traceitem)
+        traceitem = build_traceitem(tracestrategy, state, iteration, time_count)
+        push!(tr, traceitem)
         # end
 
         ## Display logs and save iteration information

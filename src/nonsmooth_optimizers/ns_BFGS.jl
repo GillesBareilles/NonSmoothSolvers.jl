@@ -28,17 +28,12 @@ end
 #
 print_header(::NSBFGS) = println("**** NSBFGS algorithm")
 
-display_logs_header(::NSBFGS, pb) = print("it.   time      F(x)                     ⟨yₖ,sₖ⟩    |d|      ||∇f||    nit_ls\n")
+display_logs_header_post(::NSBFGS) = print("⟨yₖ,sₖ⟩    |d|      ||∇f||    nit_ls\n")
 
-function display_logs(state::NSBFGSState, updateinformation, iteration, time_count)
+function display_logs_post(state::NSBFGSState, updateinformation, iteration, time_count)
     ui = updateinformation
-    @printf("%4i  %.1e  % .16e  %.3e  %.1e  %.1e  %2i\n",
-            iteration, time_count, state.fx, ui.dot_yₖ_sₖ, ui.dnorm, ui.∇F_nextnorm, ui.ls_niter)
-    nothing
-end
-function display_logs(state::NSBFGSState, iteration, time_count)
-    @printf("%4i  %.1e  % .16e\n",
-            iteration, time_count, state.fx)
+    @printf("%.3e  %.1e  %.1e  %2i\n",
+            ui.dot_yₖ_sₖ, ui.dnorm, ui.∇F_nextnorm, ui.ls_niter)
     nothing
 end
 

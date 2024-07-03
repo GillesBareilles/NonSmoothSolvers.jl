@@ -22,9 +22,9 @@ end
 Generic parameters for optim algs
 """
 Base.@kwdef struct OptimizerParams
-    iterations_limit::Int64 = 1e3
+    iterations_limit::Int64 = 30
     time_limit::Float64 = 30.0
     show_trace::Bool = true
-    trace_length::Int64 = 20
+    trace_length::Int64 = 30
     cvcheckers::Set{ConvergenceChecker} = Set([])
 end
