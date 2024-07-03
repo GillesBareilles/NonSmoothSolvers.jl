@@ -86,7 +86,7 @@ function display_logs_pre(state, iteration, time_count)
 end
 function display_logs(state, updateinformation, iteration, time_count)
     display_logs_pre(state, iteration, time_count)
-    display_logs_post(state, updateinformation, iteration, time_count)
+    display_logs_post(state, updateinformation)
     nothing
 end
 

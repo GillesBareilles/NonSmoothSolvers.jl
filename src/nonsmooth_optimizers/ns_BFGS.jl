@@ -30,7 +30,7 @@ print_header(::NSBFGS) = println("**** NSBFGS algorithm")
 
 display_logs_header_post(::NSBFGS) = print("⟨yₖ,sₖ⟩    |d|      ||∇f||    nit_ls\n")
 
-function display_logs_post(state::NSBFGSState, updateinformation, iteration, time_count)
+function display_logs_post(::NSBFGSState, updateinformation)
     ui = updateinformation
     @printf("%.3e  %.1e  %.1e  %2i\n",
             ui.dot_yₖ_sₖ, ui.dnorm, ui.∇F_nextnorm, ui.ls_niter)
