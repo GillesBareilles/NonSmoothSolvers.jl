@@ -84,7 +84,8 @@ function optimize(
     tracestrategy = DefaultTraceStrategy(),
 ) where {O<:Optimizer, Tx}
     state = initial_state(optimizer, copy(initial_x), pb)
-    return optimize!(state, pb, optimizer, optparams, tracestrategy)
+    inittrace = build_inittrace(tracestrategy, state)
+    return optimize!(state, pb, optimizer, optparams, tracestrategy, inittrace)
 end
 
 """
@@ -114,7 +115,8 @@ function optimize!(
     optimizer,
     optparams,
     tracestrategy,
-)
+    inittrace::Ttr
+) where {Ttr}
     # if getfield(NonSmoothSolvers, :timeit_debug_enabled)()
     #     reset_timer!()
     # end
@@ -138,9 +140,8 @@ function optimize!(
     show_trace && print_header(optimizer)
     show_trace && display_logs_header(optimizer, pb)
 
-    tr_ = [
-        build_inittrace(tracestrategy, state)
-    ]
+    tr = Deque{Ttr}()
+    pushfirst!(tr, inittrace)
 
     show_trace && display_logs(state, iteration, time_count)
 
@@ -154,7 +155,7 @@ function optimize!(
 
         # @timeit_debug "build_optimstate" begin
         traceitem = build_traceitem(tracestrategy, optimizer, state, iteration, time_count)
-        push!(tr_, traceitem)
+        pushfirst!(tr, traceitem)
         # end
 
         ## Display logs and save iteration information
@@ -201,7 +202,7 @@ function optimize!(
     #     printstyled("\n\n")
     # end
 
-    return x_final, tr_
+    return x_final, tr
 end
 
 function display_optimizerstatus(
