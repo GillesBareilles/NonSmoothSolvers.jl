@@ -141,7 +141,7 @@ function optimize!(
     # end
 
     x_prev = get_minimizer_candidate(state)
-    x_init = get_minimizer_candidate(state)
+    x_init = copy(get_minimizer_candidate(state))
 
     ## Collecting parameters
     iterations_limit = optparams.iterations_limit
