@@ -31,10 +31,10 @@ using JuMP, OSQP
 ### solvers
 #
 abstract type ConvergenceChecker end
-function has_converged(cvchecker::ConvergenceChecker, pb, optimizer, optimizationstate)
+function hasconverged(cvchecker::ConvergenceChecker, pb, optimizer, updateinformation)
     throw(
         error(
-            "has_converged: not defined for types &(typeof(cvchecker)), &(typeof(pb)), &(typeof(optimizer)), &(typeof(optimizationstate)).",
+            "hasconverged: not defined for types &(typeof(cvchecker)), &(typeof(pb)), &(typeof(optimizer)), &(typeof(optimizationstate)).",
         ),
     )
 end
@@ -63,7 +63,7 @@ include("nonsmooth_optimizers/VUalgo.jl")
 
 export NSS
 
-export optimize!
+export optimize, optimize!
 export OptimizerParams
 
 export Subgradient

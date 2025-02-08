@@ -26,13 +26,15 @@ end
 #
 ### Printing
 #
-print_header(gs::NSBFGS) = println("**** NSBFGS algorithm")
+print_header(::NSBFGS) = println("**** NSBFGS algorithm")
 
-display_logs_header_post(gs::NSBFGS) = print("⟨yₖ,sₖ⟩    |d|      ||∇f||    nit_ls")
+display_logs_header_post(::NSBFGS) = print("⟨yₖ,sₖ⟩    |d|      ||∇f||    nit_ls\n")
 
-function display_logs_post(os, gs::NSBFGS)
-    ai = os.additionalinfo
-    @printf "%.3e  %.1e  %.1e  %2i" ai.dot_yₖ_sₖ ai.dnorm ai.∇F_nextnorm ai.ls_niter
+function display_logs_post(::NSBFGSState, updateinformation)
+    ui = updateinformation
+    @printf("%.3e  %.1e  %.1e  %2i\n",
+            ui.dot_yₖ_sₖ, ui.dnorm, ui.∇F_nextnorm, ui.ls_niter)
+    nothing
 end
 
 #
@@ -102,3 +104,4 @@ end
 
 
 get_minimizer_candidate(state::NSBFGSState) = state.x
+get_minval_candidate(state::NSBFGSState) = state.fx
