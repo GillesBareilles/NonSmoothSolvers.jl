@@ -70,6 +70,6 @@ export Subgradient
 export GradientSampling
 export NSBFGS
 
-export VUbundle
+export VUbundle, VUbundleState
 
 end # module

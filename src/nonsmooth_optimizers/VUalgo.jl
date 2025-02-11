@@ -83,9 +83,8 @@ end
 
 display_logs_header_post(gs::VUbundle) = print("μ         ϵ̂       | ŝ|          #bboxcalls     nₖ   ⟨dᴺ, sₖ⟩  |dᴺ|")
 
-function display_logs_post(os, gs::VUbundle)
-    ai = os.additionalinfo
-    @printf "%.2e  %.2e %.2e     %-2i             %-2i   % .1e  %.2e" ai.μ ai.ϵ̂  ai.ŝnorm ai.bboxcalls ai.nₖ ai.dotsₖNewtonstep ai.Newtonsteplength
+function display_logs_post(::VUbundleState, ui)
+    @printf "%.2e  %.2e %.2e     %-2i             %-2i   % .1e  %.2e" ui.μ ui.ϵ̂  ui.ŝnorm ui.bboxcalls ui.nₖ ui.dotsₖNewtonstep ui.Newtonsteplength
 end
 
 
@@ -377,3 +376,4 @@ function update_iterate!(state, VU::VUbundle{Tf}, pb) where Tf
 end
 
 get_minimizer_candidate(state::VUbundleState) = state.p
+get_minval_candidate(state::VUbundleState) = state.Fp

@@ -38,7 +38,7 @@ function isearch!(
     # TODO fix variable names in this function.
     # TODO remove redundant point info from bundle point.
 
-    printlev = 1
+    printlev = 0
     printlev > 0 &&
         printstyled(" --- isearch --- \n", color = :light_yellow)
     printlev > 0 && @show p

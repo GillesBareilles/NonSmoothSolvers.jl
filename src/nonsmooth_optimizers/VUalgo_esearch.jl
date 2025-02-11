@@ -10,7 +10,9 @@ function esearch!(bundle::Bundle{Tf},
                   printlev = 0, nullstepshist = []) where Tf
     nsrch = 0
 
-    printlev = 2
+    xᶜₖ₊₁, pₖ = xc, p
+    gxᶜₖ₊₁ = gxc
+    printlev = 0
     printlev > 0 &&
         printstyled(" xxx esearch xxx \n", color = :magenta)
     printlev > 0 && @show xc
