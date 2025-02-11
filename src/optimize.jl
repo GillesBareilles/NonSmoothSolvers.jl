@@ -71,6 +71,8 @@ function build_traceitem(::DefaultTraceStrategy, state, iteration, time_count)
     return DefaultTraceItem(get_minimizer_candidate(state), get_minval_candidate(state), iteration, time_count)
 end
 
+export DefaultTraceStrategy
+
 #
 ### Printing
 #

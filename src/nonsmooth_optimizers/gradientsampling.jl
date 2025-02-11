@@ -45,6 +45,7 @@ GradientSampling(initial_x::AbstractVector{Tf}; ϵ_opt=1e-6, ν_opt=1e-6) where 
 
 Base.@kwdef mutable struct GradientSamplingState{Tf} <: OptimizerState{Tf}
     x::Vector{Tf}
+    fx::Tf
     ∂gᵢs::Matrix{Tf}
     ϵₖ::Tf
     νₖ::Tf
@@ -54,8 +55,9 @@ end
 
 function initial_state(gs::GradientSampling{Tf}, initial_x::Vector{Tf}, pb) where {Tf}
     ∂gᵢs = zeros(Tf, length(initial_x), gs.m + 1)
-    return GradientSamplingState(;
+    return GradientSamplingState{Tf}(;
         x = initial_x,
+        fx = F(pb, initial_x),
         ∂gᵢs,
         ϵₖ = Tf(0.1),
         νₖ = Tf(0.1),
@@ -69,10 +71,11 @@ end
 #
 print_header(gs::GradientSampling) = println("**** GradientSampling algorithm\nm = $(gs.m)")
 
-display_logs_header_post(gs::GradientSampling) =
-    print("||gᵏ||     ϵₖ       νₖ        it_ls")
-function display_logs_post(os, gs::GradientSampling)
-    @printf "%.3e  %.1e  %.1e  %2i" os.additionalinfo.gᵏ_norm os.additionalinfo.ϵₖ os.additionalinfo.νₖ os.additionalinfo.it_ls
+display_logs_header_post(::GradientSampling) =
+    print("||gᵏ||     ϵₖ       νₖ        it_ls\n")
+function display_logs_post(::GradientSamplingState, updateinformation)
+    ui = updateinformation
+    @printf "%.3e  %.1e  %.1e  %2i\n" ui.gᵏ_norm ui.ϵₖ ui.νₖ ui.it_ls
 end
 
 
@@ -172,6 +175,7 @@ function update_iterate!(
     state.ϵₖ = ϵ_next
     state.νₖ = ν_next
     state.x = x_next
+    state.fx = F(pb, state.x)
     state.k += 1
 
     return (;
@@ -187,7 +191,7 @@ function update_iterate!(
 end
 
 get_minimizer_candidate(state::GradientSamplingState) = state.x
-
+get_minval_candidate(state::GradientSamplingState) = state.fx
 
 # function find_minimumnormelt_CHP(∂gᵢs::Matrix{Tf}) where {Tf}
 #     set = CHP.SimplexShadow(∂gᵢs)
