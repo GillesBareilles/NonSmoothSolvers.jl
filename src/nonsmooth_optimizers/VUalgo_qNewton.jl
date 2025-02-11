@@ -7,6 +7,7 @@ BFGS or SR1 scheme.
 function qNewtonupdate!(H, pₖ, pₖ₋₁, sₖ, sₖ₋₁, U, k, curvmin, ν, νlow, μ, kase; printlev = 0)
     n = length(pₖ)
 
+    printlev = 2
     printlev > 0 && printstyled(" === qNewton step computation === \n", color = :yellow)
     printlev > 1 && @show pₖ
     printlev > 1 && @show pₖ₋₁

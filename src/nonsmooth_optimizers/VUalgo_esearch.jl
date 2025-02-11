@@ -12,6 +12,20 @@ function esearch!(bundle::Bundle{Tf},
 
     xᶜₖ₊₁, pₖ = xc, p
     gxᶜₖ₊₁ = gxc
+    printlev = 0
+    printlev > 0 &&
+        printstyled(" xxx esearch xxx \n", color = :magenta)
+    printlev > 0 && @show xc
+    printlev > 0 && @show gxc
+    printlev > 0 && @show p
+    printlev > 0 && @show fp
+    printlev > 0 && @show gp
+    printlev > 0 && @show k
+    printlev > 0 && @show μ
+    printlev > 0 && @show σ
+    printlev > 0 && @show sₖ
+    printlev > 0 && @show bundle
+    printlev > 0 && printstyled(" xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx \n", color = :magenta)
 
     dxc = xᶜₖ₊₁ - pₖ
     gxcdxc = dot(gxᶜₖ₊₁, dxc)

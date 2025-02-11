@@ -7,8 +7,11 @@ Return ...
 """
 function bundlesubroutine!(bundle::Bundle{Tf}, pb, μ::Tf, x::Vector{Tf}, σ::Tf, ϵglobal, haveinv; printlev=0, testlevel=0, nullstepshist = []) where Tf
 
-    (printlev > 2) && printstyled(" === Bundle subroutine computation === \n", color = :blue)
-    (printlev > 2) && @show μ, σ, haveinv
+    printlev = 0
+    (printlev > 2) && printstyled(" +++ Bundle subroutine computation +++ \n", color = :blue)
+    (printlev > 2) && @show μ
+    (printlev > 2) && @show σ
+    (printlev > 2) && @show haveinv
     (printlev > 2) && @show x
 
     ᾱ = nothing
@@ -90,6 +93,7 @@ function bundlesubroutine!(bundle::Bundle{Tf}, pb, μ::Tf, x::Vector{Tf}, σ::Tf
 
         ## NOTE: stopping criterion for global optimal point
         isglobalopt = (ϵ̂ + haveinv * norm(ŝ)^2 ≤ ϵglobal^2) || max(norm(ŝ)^2, μ/σ*ϵ̂) < max(1e-9, ϵglobal^2)
+        isglobalopt = false
         if isglobalopt
             @info "Found optimal point: " Fp̂
             subroutinestatus = :ApproxMinimizerFound

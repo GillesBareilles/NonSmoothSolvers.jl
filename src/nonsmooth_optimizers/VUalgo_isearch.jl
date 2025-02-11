@@ -6,7 +6,8 @@ function isearch(pb, p,fp,gp,bundle, phat,fphat,gphat, k,sigma,vound,mufirst; nu
     # TODO add ! to fct name
 
     printlev = 0
-    printlev > 0 && printstyled(" === qNewton step computation === \n", color = :light_yellow)
+    printlev > 0 &&
+        printstyled(" --- isearch --- \n", color = :light_yellow)
     printlev > 0 && @show p
     printlev > 0 && @show fp
     printlev > 0 && @show gp
